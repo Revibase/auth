@@ -20,12 +20,8 @@ const nextConfig: NextConfig = {
             value: "max-age=31536000; includeSubDomains; preload",
           },
           {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; frame-src 'self' https://www.google.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com https://static.cloudflareinsights.com; connect-src 'self' https://content-firebaseappcheck.googleapis.com https://www.googleapis.com https://www.google.com https://cloudflareinsights.com https://firestore.googleapis.com; img-src 'self' https://www.gstatic.com; font-src 'self' https://fonts.gstatic.com;`,
+            value: `default-src 'self'; base-uri 'self'; frame-ancestors  https://revibase.com https://www.revibase.com; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; connect-src 'self' wss://api.devnet.solana.com/ https://rpc.revibase.com https://keys.revibase.com https://passkeys.revibase.com https://cloudflareinsights.com; img-src 'self'; font-src 'self';`,
           },
         ],
       },
