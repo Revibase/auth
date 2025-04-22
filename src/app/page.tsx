@@ -698,7 +698,7 @@ const RegistrationPage: FC<{
                 }}
                 onSuccess={async (token) => {
                   const result = await fetch(
-                    "https://keys.revibase.com/verify",
+                    "https://payers.revibase.com/verify",
                     {
                       method: "POST",
                       body: JSON.stringify({

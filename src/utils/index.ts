@@ -36,7 +36,7 @@ function createTransactionSigner(
           const signatures = await Promise.all(
             transactions.map(async (x) => {
               const signatureResponse = await fetch(
-                "https://keys.revibase.com/sign",
+                "https://payers.revibase.com/sign",
                 {
                   method: "POST",
                   body: JSON.stringify({
