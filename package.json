@@ -16,7 +16,7 @@
     "@marsidev/react-turnstile": "^1.1.0",
     "@radix-ui/react-label": "^2.1.3",
     "@radix-ui/react-slot": "^1.2.0",
-    "@revibase/passkeys-sdk": "^1.0.24",
+    "@revibase/passkeys-sdk": "1.0.28",
     "@revibase/sdk": "^1.0.38",
     "@simplewebauthn/browser": "^13.1.0",
     "@solana/kit": "^2.1.0",
