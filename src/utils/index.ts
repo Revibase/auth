@@ -1,4 +1,10 @@
+import { ParsedTransaction } from "@/types";
 import { TransactionActionType } from "@revibase/passkeys-sdk";
+import {
+  customTransactionMessageDeserialize,
+  deserializeConfigActions,
+} from "@revibase/sdk";
+import { base64URLStringToBuffer } from "@simplewebauthn/browser";
 import {
   address,
   Address,
@@ -119,4 +125,59 @@ export async function createTransactionChallenge({
     )
   );
   return { slotNumber, slotHash, challenge };
+}
+
+export const parsedTransaction = (transaction: string): ParsedTransaction => {
+  const { transactionActionType, transactionAddress, transactionMessageBytes } =
+    JSON.parse(transaction) as {
+      transactionActionType: TransactionActionType;
+      transactionAddress: string;
+      transactionMessageBytes: string;
+    };
+  const deserializedTxMessage =
+    transactionActionType === "add_new_member"
+      ? null
+      : transactionActionType === "change_config"
+      ? deserializeConfigActions(
+          new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
+        )
+      : customTransactionMessageDeserialize(
+          new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
+        );
+  const typeMap: Record<
+    TransactionActionType,
+    {
+      value: string;
+      variant: "default" | "outline" | "secondary" | "destructive";
+    }
+  > = {
+    create: { value: "Create And Execute Transaction", variant: "default" },
+    execute: { value: "Execute Transaction", variant: "default" },
+    vote: { value: "Vote", variant: "outline" },
+    close: { value: "Close", variant: "destructive" },
+    sync: { value: "Create And Execute Transaction", variant: "default" },
+    change_config: { value: "Change Config", variant: "default" },
+    add_new_member: {
+      value: "Add New Passkey Member",
+      variant: "secondary",
+    },
+  };
+
+  return {
+    transactionActionType,
+    label: typeMap[transactionActionType],
+    transactionAddress,
+    transactionMessageBytes: base64URLStringToBuffer(transactionMessageBytes),
+    deserializedTxMessage,
+  };
+};
+
+export function isValidUrl(url: string | undefined | null) {
+  if (!url) return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
