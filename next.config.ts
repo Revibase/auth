@@ -10,6 +10,15 @@ setupDevPlatform().catch(console.error);
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "proxy.revibase.com",
+        pathname: "/**",
+      },
+    ],
+  },
   async headers() {
     return [
       {
@@ -21,7 +30,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; base-uri 'self'; frame-ancestors https://revibase.com https://www.revibase.com; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; connect-src 'self' wss://api.devnet.solana.com/ https://rpc.revibase.com https://payers.revibase.com https://passkeys.revibase.com https://cloudflareinsights.com; img-src 'self'; font-src 'self';`,
+            value: `default-src 'self'; base-uri 'self'; frame-ancestors https://revibase.com https://www.revibase.com; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; connect-src 'self' wss://api.devnet.solana.com/ https://rpc.revibase.com https://payers.revibase.com https://passkeys.revibase.com https://cloudflareinsights.com; img-src 'self' https://proxy.revibase.com; font-src 'self';`,
           },
         ],
       },

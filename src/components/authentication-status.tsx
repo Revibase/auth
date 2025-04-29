@@ -3,16 +3,22 @@
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, ExternalLink } from "lucide-react";
+import { Skeleton } from "./ui/skeleton";
 
 interface AuthenticationStatusProps {
   countdown: number;
   onRedirectNow: () => void;
+  isLoading: boolean;
 }
 
 export function AuthenticationStatus({
   countdown,
   onRedirectNow,
+  isLoading,
 }: AuthenticationStatusProps) {
+  if (isLoading) {
+    return <AuthenticationSkeleton />;
+  }
   return (
     <div className="w-full space-y-4">
       <motion.div
@@ -50,6 +56,23 @@ export function AuthenticationStatus({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+function AuthenticationSkeleton() {
+  return (
+    <div className="w-full space-y-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-col items-center justify-center gap-2 text-center"
+      >
+        <Skeleton className="w-12 h-12 rounded-full" />
+        <Skeleton className="h-6 w-48 mx-auto" />
+        <Skeleton className="h-4 w-36 mx-auto" />
+      </motion.div>
+      <Skeleton className="h-10 w-full rounded-md" />
     </div>
   );
 }

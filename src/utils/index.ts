@@ -1,4 +1,5 @@
 import { ParsedTransaction } from "@/types";
+import { DAS } from "@/types/DAS";
 import { TransactionActionType } from "@revibase/passkeys-sdk";
 import {
   customTransactionMessageDeserialize,
@@ -10,6 +11,7 @@ import {
   Address,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  getAddressDecoder,
   getBase58Decoder,
   getBase58Encoder,
   getBase64Decoder,
@@ -22,8 +24,8 @@ import {
   SolanaRpcApi,
   TransactionSigner,
 } from "@solana/kit";
-
-export const rpc = createSolanaRpc("https://rpc.revibase.com");
+const conectionEndpoint = "https://rpc.revibase.com";
+export const rpc = createSolanaRpc(conectionEndpoint);
 export const rpId = "revibase.com";
 export const sendAndConfirm = sendAndConfirmTransactionFactory({
   rpc,
@@ -118,7 +120,9 @@ export async function createTransactionChallenge({
         ...new Uint8Array(getUtf8Encoder().encode(transactionActionType)),
         ...getBase58Encoder().encode(transactionAddress),
         ...new Uint8Array(
-          await crypto.subtle.digest("SHA-256", transactionMessageBytes)
+          transactionActionType !== "close"
+            ? await crypto.subtle.digest("SHA-256", transactionMessageBytes)
+            : transactionMessageBytes
         ),
         ...slotHashBytes,
       ])
@@ -127,23 +131,59 @@ export async function createTransactionChallenge({
   return { slotNumber, slotHash, challenge };
 }
 
-export const parsedTransaction = (transaction: string): ParsedTransaction => {
+function deserializeIntent(buffer: Uint8Array, isNative: boolean) {
+  const amount = getU64Decoder().decode(buffer.subarray(0, 8));
+  const destination = getAddressDecoder().decode(buffer.subarray(8, 40));
+  const mint = isNative
+    ? getAddressDecoder().decode(buffer.subarray(40))
+    : getAddressDecoder().decode(buffer.subarray(40));
+  return { amount, destination, mint };
+}
+
+export const parsedTransaction = (
+  transaction: string,
+  redirectUrl: string
+): ParsedTransaction => {
   const { transactionActionType, transactionAddress, transactionMessageBytes } =
     JSON.parse(transaction) as {
       transactionActionType: TransactionActionType;
       transactionAddress: string;
       transactionMessageBytes: string;
     };
-  const deserializedTxMessage =
-    transactionActionType === "add_new_member"
-      ? null
-      : transactionActionType === "change_config"
-      ? deserializeConfigActions(
-          new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
-        )
-      : customTransactionMessageDeserialize(
-          new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
-        );
+  let deserializedTxMessage;
+  switch (transactionActionType) {
+    case "add_new_member":
+      deserializedTxMessage = `${
+        new URL(redirectUrl).hostname
+      } wants to link your passkey to a multisig wallet.`;
+      break;
+    case "change_config":
+      deserializedTxMessage = deserializeConfigActions(
+        new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
+      );
+      break;
+    case "native_transfer_intent":
+      deserializedTxMessage = deserializeIntent(
+        new Uint8Array(base64URLStringToBuffer(transactionMessageBytes)),
+        true
+      );
+      break;
+    case "token_transfer_intent":
+      deserializedTxMessage = deserializeIntent(
+        new Uint8Array(base64URLStringToBuffer(transactionMessageBytes)),
+        false
+      );
+      break;
+    case "close":
+      deserializedTxMessage = `Closing ${transactionAddress} to reclaim rent fees.`;
+      break;
+    default:
+      deserializedTxMessage = customTransactionMessageDeserialize(
+        new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
+      );
+      break;
+  }
+
   const typeMap: Record<
     TransactionActionType,
     {
@@ -151,15 +191,36 @@ export const parsedTransaction = (transaction: string): ParsedTransaction => {
       variant: "default" | "outline" | "secondary" | "destructive";
     }
   > = {
-    create: { value: "Create And Execute Transaction", variant: "default" },
-    execute: { value: "Execute Transaction", variant: "default" },
-    vote: { value: "Vote", variant: "outline" },
-    close: { value: "Close", variant: "destructive" },
-    sync: { value: "Create And Execute Transaction", variant: "default" },
+    create: {
+      value: "Create Transaction",
+      variant: "default",
+    },
+    create_with_permissionless_execution: {
+      value: "Create And Execute Transaction",
+      variant: "default",
+    },
+    execute: {
+      value: "Execute Transaction",
+      variant: "default",
+    },
+    vote: { value: "Vote Transaction", variant: "outline" },
+    close: { value: "Close Pending Transaction", variant: "destructive" },
+    sync: {
+      value: "Create And Execute Transaction Synchronously",
+      variant: "default",
+    },
     change_config: { value: "Change Config", variant: "default" },
     add_new_member: {
       value: "Add New Passkey Member",
       variant: "secondary",
+    },
+    native_transfer_intent: {
+      value: "Transfer Solana Request",
+      variant: "default",
+    },
+    token_transfer_intent: {
+      value: "Transfer Token Request",
+      variant: "default",
     },
   };
 
@@ -180,4 +241,69 @@ export function isValidUrl(url: string | undefined | null) {
   } catch {
     return false;
   }
+}
+
+export async function getAsset(assetId: string | null | undefined) {
+  if (!assetId) return null;
+  const response = await fetch(conectionEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "my-id",
+      method: "getAsset",
+      params: {
+        id: assetId,
+      } as DAS.GetAssetRequest,
+    }),
+  });
+
+  const jsonResponse = (await response.json()) as {
+    result?: DAS.GetAssetResponse;
+  };
+
+  return jsonResponse.result ?? null;
+}
+
+export const SOL_NATIVE_MINT = (
+  nativeBalance?:
+    | {
+        lamports: number;
+        price_per_sol: number;
+        total_price: number;
+      }
+    | undefined
+) => {
+  return {
+    compression: {
+      compressed: false,
+    },
+    content: {
+      json_uri: "",
+      links: {
+        image:
+          "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+      },
+      metadata: { name: "Solana", symbol: "SOL", description: "" },
+    },
+    id: "native_sol",
+    interface: "Custom",
+    token_info: {
+      supply: 500_000_000, // any number than is more than 1 will do to show that it is fungible
+      decimals: 9,
+      price_info: {
+        currency: "USDC",
+        price_per_token: nativeBalance?.price_per_sol || 0,
+      },
+      balance: nativeBalance?.lamports,
+      symbol: "SOL",
+      token_program: "",
+    },
+  } as DAS.GetAssetResponse;
+};
+
+export function proxify(imageUrl?: string) {
+  return imageUrl ? `https://proxy.revibase.com/?image=${imageUrl}` : "";
 }

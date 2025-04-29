@@ -1,5 +1,6 @@
 import { TransactionActionType } from "@revibase/passkeys-sdk";
 import { ConfigAction, CustomTransactionMessage } from "@revibase/sdk";
+import { Address } from "@solana/kit";
 
 export interface SessionToken {
   token: string;
@@ -17,8 +18,8 @@ export interface SessionToken {
   signature: string;
 }
 
-type Message = {
-  type: "message" | "chainedTransaction";
+export type Message = {
+  type: "message";
   payload: string;
 };
 
@@ -30,9 +31,22 @@ export type ParsedTransaction = {
   };
   transactionAddress: string;
   transactionMessageBytes: ArrayBuffer;
-  deserializedTxMessage: ConfigAction[] | CustomTransactionMessage | null;
+  deserializedTxMessage:
+    | ConfigAction[]
+    | string
+    | null
+    | Intent
+    | CustomTransactionMessage;
 };
 
-type Transaction = { type: "transaction"; payload: string } & ParsedTransaction;
+export type Intent = {
+  amount: bigint;
+  destination: Address;
+  mint: Address;
+};
+export type Transaction = {
+  type: "transaction";
+  payload: string;
+} & ParsedTransaction;
 
 export type Data = Message | Transaction;

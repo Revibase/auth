@@ -24,6 +24,8 @@ import { convertSignatureDERtoRS } from "@revibase/passkeys-sdk";
 import {
   createWallet,
   getDomainConfig,
+  getSecp256r1PubkeyDecoder,
+  getSecp256r1SignatureDecoder,
   getSettingsFromCreateKey,
   Permissions,
   Secp256r1Key,
@@ -55,9 +57,184 @@ import {
   Loader2,
   ShieldCheck,
 } from "lucide-react";
-import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import { type FC, memo, useCallback, useEffect, useRef, useState } from "react";
 
-export const RegistrationPage: FC<{
+const slideIn = {
+  initial: { opacity: 1, y: 0 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+  transition: { duration: 0.2 },
+};
+
+const slideInRight = {
+  initial: { opacity: 1, x: 0 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 20 },
+  transition: { duration: 0.2 },
+};
+
+const InputStage = memo(
+  ({
+    username,
+    setUsername,
+    loading,
+    pubKey,
+  }: {
+    username: string;
+    setUsername: (value: string) => void;
+    loading: boolean;
+    pubKey: string | null;
+  }) => (
+    <div className="space-y-2">
+      <Label htmlFor="username" className="text-sm font-medium">
+        Username
+      </Label>
+      <Input
+        id="username"
+        placeholder="Enter a username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        disabled={loading || !!pubKey}
+        className="h-10"
+      />
+    </div>
+  )
+);
+InputStage.displayName = "InputStage";
+
+const CreatingStage = memo(({ username }: { username: string }) => (
+  <motion.div
+    key="creating"
+    {...slideInRight}
+    className="flex flex-col items-center justify-center py-6 space-y-4"
+  >
+    <div className="w-12 h-12 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+    <p className="text-sm text-slate-600 dark:text-slate-400">
+      Creating your passkey for <span className="font-medium">{username}</span>
+    </p>
+    <p className="text-xs text-slate-500 dark:text-slate-500">
+      Follow the prompts on your device
+    </p>
+  </motion.div>
+));
+CreatingStage.displayName = "CreatingStage";
+
+const VerifyingStage = memo(() => (
+  <motion.div
+    key="verifying"
+    {...slideInRight}
+    className="flex flex-col items-center justify-center py-6 space-y-4"
+  >
+    <div className="relative">
+      <div className="w-12 h-12 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+      <motion.div
+        initial={{ scale: 1 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.5, duration: 0.5 }}
+        className="absolute inset-0 flex items-center justify-center"
+      >
+        <Fingerprint className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
+      </motion.div>
+    </div>
+    <p className="text-sm text-slate-600 dark:text-slate-400">
+      Setting up your secure wallet
+    </p>
+    <div className="w-full max-w-[200px] h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+      <motion.div
+        initial={{ width: "0%" }}
+        animate={{ width: "100%" }}
+        transition={{ duration: 3 }}
+        className="h-full bg-emerald-500 rounded-full"
+      />
+    </div>
+  </motion.div>
+));
+VerifyingStage.displayName = "VerifyingStage";
+
+const CompleteStage = memo(() => (
+  <motion.div
+    key="complete"
+    initial={{ opacity: 1, scale: 1 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    className="w-full text-center space-y-3 p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900"
+  >
+    <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-500">
+      <CheckCircle className="h-6 w-6" />
+      <span className="font-medium text-lg">Success!</span>
+    </div>
+    <p className="text-sm text-slate-700 dark:text-slate-300">
+      Your account has been created successfully
+    </p>
+  </motion.div>
+));
+CompleteStage.displayName = "CompleteStage";
+
+const ErrorAlert = memo(({ error }: { error: string | null }) => {
+  if (!error) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 1, height: "auto" }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Alert variant="destructive" className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription className="break-words whitespace-pre-wrap">
+          {error}
+        </AlertDescription>
+      </Alert>
+    </motion.div>
+  );
+});
+ErrorAlert.displayName = "ErrorAlert";
+
+const RegisterButton = memo(
+  ({
+    onClick,
+    disabled,
+    loading,
+  }: {
+    onClick: () => void;
+    disabled: boolean;
+    loading: boolean;
+  }) => (
+    <Button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full relative overflow-hidden group"
+      size="lg"
+    >
+      {loading ? (
+        <span className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Creating account...
+        </span>
+      ) : (
+        <span className="flex items-center gap-2">
+          <Fingerprint className="h-5 w-5" />
+          Create Account
+          <span className="absolute inset-0 w-full h-full bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+        </span>
+      )}
+    </Button>
+  )
+);
+RegisterButton.displayName = "RegisterButton";
+
+const RedirectButton = memo(({ onClick }: { onClick: () => void }) => (
+  <Button onClick={onClick} className="w-full" variant="outline">
+    <span className="flex items-center gap-2">
+      <ExternalLink className="h-4 w-4" />
+      Redirect Now
+    </span>
+  </Button>
+));
+RedirectButton.displayName = "RedirectButton";
+
+export const Registration: FC<{
   redirectUrl: string | null;
   hints?: PublicKeyCredentialHint[];
 }> = ({ redirectUrl, hints }) => {
@@ -72,10 +249,25 @@ export const RegistrationPage: FC<{
     "input" | "creating" | "verifying" | "complete"
   >("input");
 
+  // Memoized stage title
+  const stageTitle = (() => {
+    switch (registrationStage) {
+      case "creating":
+        return "Creating Passkey";
+      case "verifying":
+        return "Setting Up Wallet";
+      case "complete":
+        return "Account Created";
+      default:
+        return "Create a new account";
+    }
+  })();
+
   const handleRedirectNow = useCallback(() => {
     if (redirectUrl && username && pubKey) {
-      if (window.opener) {
-        window.opener.postMessage(
+      const target = window.opener || window.parent;
+      if (target) {
+        target.postMessage(
           {
             type: "popup-registration-complete",
             payload: [
@@ -84,17 +276,6 @@ export const RegistrationPage: FC<{
                 publicKey: pubKey,
               }),
             ],
-          },
-          redirectUrl
-        );
-      } else if (window.parent) {
-        window.parent.postMessage(
-          {
-            type: "popup-registration-complete",
-            payload: JSON.stringify({
-              username,
-              publicKey: pubKey,
-            }),
           },
           redirectUrl
         );
@@ -141,22 +322,21 @@ export const RegistrationPage: FC<{
         const authData = new Uint8Array(
           base64URLStringToBuffer(response.authenticatorData)
         );
-
         const clientDataJson = new Uint8Array(
           base64URLStringToBuffer(response.clientDataJSON)
         );
-
         const signature = convertSignatureDERtoRS(
           new Uint8Array(base64URLStringToBuffer(response.signature))
         );
-
         const truncatedAuthData = authData.subarray(32, authData.length);
 
         const verifyArgs: Secp256r1VerifyArgs = {
-          signature,
-          pubkey: getBase58Encoder().encode(publicKey),
-          truncatedAuthData,
-          clientDataJson,
+          signature: getSecp256r1SignatureDecoder().decode(signature),
+          pubkey: getSecp256r1PubkeyDecoder().decode(
+            getBase58Encoder().encode(publicKey)
+          ),
+          truncatedAuthData: truncatedAuthData,
+          clientDataJson: clientDataJson,
           slotNumber: BigInt(slotNumber),
           slotHash: getBase58Encoder().encode(slotHash),
         };
@@ -202,6 +382,8 @@ export const RegistrationPage: FC<{
   );
 
   const handleRegister = useCallback(async () => {
+    if (!username.trim() || !sessionToken) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -262,9 +444,9 @@ export const RegistrationPage: FC<{
     } finally {
       setLoading(false);
     }
-  }, [username, handleCreateWallet, hints]);
+  }, [username, handleCreateWallet, hints, sessionToken]);
 
-  // All useEffects after all callbacks
+  // Handle countdown and redirect
   useEffect(() => {
     if (!pubKey) return;
 
@@ -287,305 +469,93 @@ export const RegistrationPage: FC<{
     };
   }, [pubKey, handleRedirectNow]);
 
-  // Helper functions after hooks
-  const getStageTitle = () => {
-    switch (registrationStage) {
-      case "creating":
-        return "Creating Passkey";
-      case "verifying":
-        return "Setting Up Wallet";
-      case "complete":
-        return "Account Created";
-      default:
-        return "Create a new account";
+  // Handle Turnstile token verification
+  const handleTurnstileSuccess = useCallback(async (token: string) => {
+    try {
+      const result = await fetch("https://payers.revibase.com/verify", {
+        method: "POST",
+        body: JSON.stringify({
+          "cf-turnstile-response": token,
+        }),
+      });
+      if (result.ok) {
+        const { token, signature } = (await result.json()) as {
+          token: string;
+          signature: string;
+        };
+        setSessionToken({ token, signature });
+      }
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      setError("Failed to verify security token. Please try again.");
     }
-  };
+  }, []);
 
-  // Render function with no early returns
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container flex-col gap-4 max-w-lg mx-auto flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="w-full"
-        >
+        <div className="w-full">
           <Card className="w-full shadow-lg border-slate-200 dark:border-slate-800">
             <CardHeader className="space-y-4 items-center justify-center pb-4">
-              <motion.div
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800"
-              >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800">
                 <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
-              </motion.div>
+              </div>
               <div className="space-y-1 text-center">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={registrationStage}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CardTitle className="text-lg font-semibold text-center">
-                      {getStageTitle()}
-                    </CardTitle>
-                  </motion.div>
-                </AnimatePresence>
+                <CardTitle className="text-lg font-semibold text-center">
+                  {stageTitle}
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" initial={false}>
                 {registrationStage === "input" ? (
-                  <motion.div
-                    key="input"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="username" className="text-sm font-medium">
-                        Username
-                      </Label>
-                      <Input
-                        id="username"
-                        placeholder="Enter a username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        disabled={loading || !!pubKey}
-                        className="h-10"
-                      />
-                    </div>
-                  </motion.div>
-                ) : registrationStage === "creating" ? (
-                  <motion.div
-                    key="creating"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex flex-col items-center justify-center py-6 space-y-4"
-                  >
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 2,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: "linear",
-                      }}
-                      className="w-12 h-12 rounded-full border-2 border-emerald-500 border-t-transparent"
-                    />
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Creating your passkey for{" "}
-                      <span className="font-medium">{username}</span>
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-500">
-                      Follow the prompts on your device
-                    </p>
-                  </motion.div>
-                ) : registrationStage === "verifying" ? (
-                  <motion.div
-                    key="verifying"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex flex-col items-center justify-center py-6 space-y-4"
-                  >
-                    <div className="relative">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{
-                          duration: 2,
-                          repeat: Number.POSITIVE_INFINITY,
-                          ease: "linear",
-                        }}
-                        className="w-12 h-12 rounded-full border-2 border-emerald-500 border-t-transparent"
-                      />
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: [0, 1, 0.8, 1] }}
-                        transition={{ delay: 0.5, duration: 0.5 }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
-                        <Fingerprint className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
-                      </motion.div>
-                    </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Setting up your secure wallet
-                    </p>
-                    <div className="w-full max-w-[200px] h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: "0%" }}
-                        animate={{ width: "100%" }}
-                        transition={{ duration: 3 }}
-                        className="h-full bg-emerald-500 rounded-full"
-                      />
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="complete"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="w-full text-center space-y-3 p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900"
-                  >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1, rotate: [0, 15, -15, 0] }}
-                      transition={{ delay: 0.2, duration: 0.6, type: "spring" }}
-                      className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-500"
-                    >
-                      <CheckCircle className="h-6 w-6" />
-                      <span className="font-medium text-lg">Success!</span>
-                    </motion.div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
-                      Your account has been created successfully
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Alert
-                      variant="destructive"
-                      className="flex items-center gap-2"
-                    >
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="break-words whitespace-pre-wrap">
-                        {error}
-                      </AlertDescription>
-                    </Alert>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {registrationStage === "input" && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="w-full flex justify-center"
-                >
-                  <Turnstile
-                    siteKey={
-                      process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_TOKEN!
-                    }
-                    onExpire={() => {
-                      setSessionToken(null);
-                    }}
-                    onSuccess={async (token) => {
-                      try {
-                        const result = await fetch(
-                          "https://payers.revibase.com/verify",
-                          {
-                            method: "POST",
-                            body: JSON.stringify({
-                              "cf-turnstile-response": token,
-                            }),
-                          }
-                        );
-                        if (result.ok) {
-                          const { token, signature } =
-                            (await result.json()) as {
-                              token: string;
-                              signature: string;
-                            };
-                          setSessionToken({ token, signature });
-                        }
-                      } catch (error) {
-                        console.error("Error verifying token:", error);
-                        setError(
-                          "Failed to verify security token. Please try again."
-                        );
-                      }
-                    }}
+                  <InputStage
+                    username={username}
+                    setUsername={setUsername}
+                    loading={loading}
+                    pubKey={pubKey}
                   />
-                </motion.div>
-              )}
+                ) : registrationStage === "creating" ? (
+                  <CreatingStage username={username} />
+                ) : registrationStage === "verifying" ? (
+                  <VerifyingStage />
+                ) : (
+                  <CompleteStage />
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence initial={false}>
+                {error && <ErrorAlert error={error} />}
+              </AnimatePresence>
             </CardContent>
             <CardFooter className="flex flex-col space-y-3 pt-2">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" initial={false}>
                 {registrationStage === "input" ? (
-                  <motion.div
-                    key="register-button"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="w-full"
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Button
-                        onClick={() => handleRegister()}
-                        disabled={loading || !username.trim() || !sessionToken}
-                        className="w-full relative overflow-hidden group"
-                        size="lg"
-                      >
-                        {loading ? (
-                          <span className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Creating account...
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-2">
-                            <motion.div
-                              animate={{ rotate: [0, 10, 0] }}
-                              transition={{
-                                duration: 1.5,
-                                repeat: Number.POSITIVE_INFINITY,
-                                repeatType: "reverse",
-                                ease: "easeInOut",
-                              }}
-                            >
-                              <Fingerprint className="h-5 w-5" />
-                            </motion.div>
-                            Create Account
-                            <span className="absolute inset-0 w-full h-full bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
-                          </span>
-                        )}
-                      </Button>
-                    </motion.div>
-                  </motion.div>
+                  <>
+                    <Turnstile
+                      siteKey={
+                        process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_TOKEN!
+                      }
+                      onExpire={() => {
+                        setSessionToken(null);
+                      }}
+                      onSuccess={handleTurnstileSuccess}
+                    />
+                    <RegisterButton
+                      onClick={handleRegister}
+                      disabled={loading || !username.trim() || !sessionToken}
+                      loading={loading}
+                    />
+                  </>
                 ) : registrationStage === "complete" && countdown === 0 ? (
-                  <motion.div
-                    key="redirect-button"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Button
-                      onClick={handleRedirectNow}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      <span className="flex items-center gap-2">
-                        <ExternalLink className="h-4 w-4" />
-                        Redirect Now
-                      </span>
-                    </Button>
+                  <motion.div key="redirect-button" {...slideIn}>
+                    <RedirectButton onClick={handleRedirectNow} />
                   </motion.div>
-                ) : (
-                  <></>
-                )}
+                ) : null}
               </AnimatePresence>
             </CardFooter>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
