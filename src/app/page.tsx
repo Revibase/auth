@@ -79,6 +79,7 @@ export default function Home() {
               {!response && (
                 <TransactionDetails
                   data={data}
+                  publicKey={publicKey}
                   isLoading={isLoading}
                   additionalInfo={additionalInfo}
                 />

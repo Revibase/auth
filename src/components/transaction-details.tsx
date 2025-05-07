@@ -2,16 +2,17 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { Data, Intent, Payload } from "@/types";
+import type { Data, Intent, Payload, Transaction } from "@/types";
 import { DAS } from "@/types/DAS";
 import { getAsset, proxify, rpc, SOL_NATIVE_MINT } from "@/utils";
 import {
   ConfigAction,
   fetchDelegateData,
   getMemberKeyString,
+  getMultiWalletFromSettings,
   KeyType,
   MemberKey,
-  MemberWithVerifyArgs,
+  MemberKeyWithPermissionsArgs,
   Permission,
   Permissions,
   Secp256r1Key,
@@ -23,19 +24,19 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
-  FileCode,
   FileText,
+  LinkIcon,
   Settings,
   Shield,
   UserMinus,
   UserPlus,
   Users,
-  X,
+  Wallet,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "./ui/badge";
-import { Card } from "./ui/card";
+import { Card, CardContent } from "./ui/card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -45,6 +46,7 @@ import { Skeleton } from "./ui/skeleton";
 
 interface TransactionDetailsProps {
   data: Data | null;
+  publicKey: string;
   isLoading: boolean;
   additionalInfo?: any;
 }
@@ -77,6 +79,7 @@ function TransactionSkeleton() {
 
 export function TransactionDetails({
   data,
+  publicKey,
   isLoading,
   additionalInfo,
 }: TransactionDetailsProps) {
@@ -95,7 +98,11 @@ export function TransactionDetails({
       className="space-y-2"
     >
       <ScrollArea className="h-[300px] w-full">
-        <MessageContent data={data} additionalInfo={additionalInfo} />
+        <MessageContent
+          data={data}
+          additionalInfo={additionalInfo}
+          publicKey={publicKey}
+        />
       </ScrollArea>
     </motion.div>
   );
@@ -103,33 +110,59 @@ export function TransactionDetails({
 
 function MessageContent({
   data,
+  publicKey,
   additionalInfo,
 }: {
   data: Data;
+  publicKey: string;
   additionalInfo: TransactionDetailsProps["additionalInfo"];
 }) {
-  if (
-    data.type === "message" ||
-    data.transactionActionType === "add_new_member" ||
-    data.transactionActionType === "close"
-  ) {
+  if (data.type === "message") {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-          {data.type === "message" ? (
-            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-500" />
-          ) : data.transactionActionType === "add_new_member" ? (
-            <UserPlus className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
-          ) : (
-            <X className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
-          )}
-          {data.type === "message" ? "Message Details" : data.label.value}
+          <FileText className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+          Message Details
         </div>
         <div className="font-mono text-sm whitespace-pre-wrap text-slate-800 dark:text-slate-200">
-          {data.type === "message"
-            ? data.payload
-            : (data.deserializedTxMessage as string)}
+          {data.payload}
         </div>
+      </div>
+    );
+  }
+
+  if (data.transactionActionType === "add_new_member") {
+    return <AddMemberDisplay data={data} />;
+  }
+
+  if (data.transactionActionType === "close") {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <FileText className="h-4 w-4 text-red-600 dark:text-red-500" />
+          {data.label.value}
+        </div>
+        <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+          <CardContent>
+            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/20 p-3 rounded-md">
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-500" />
+              <div className="text-sm text-slate-800 dark:text-slate-200">
+                This action will permanently close the transaction and it cannot
+                be reopened.
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Transaction Details
+              </div>
+              <div className="text-sm text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-3 rounded-md">
+                {typeof data.deserializedTxMessage === "string"
+                  ? data.deserializedTxMessage
+                  : JSON.stringify(data.deserializedTxMessage, null, 2)}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -154,6 +187,7 @@ function MessageContent({
         <IntentDisplay
           intent={data.deserializedTxMessage as Intent}
           additionalInfo={additionalInfo}
+          publicKey={publicKey}
         />
       </div>
     );
@@ -189,8 +223,11 @@ function ConfigActionItem({ action }: { action: ConfigAction }) {
   // Get icon based on action kind
   const getActionIcon = () => {
     switch (action.__kind) {
-      case "SetMembers":
-        return <Users className="h-4 w-4 text-blue-600 dark:text-blue-500" />;
+      case "EditPermissions":
+        return (
+          <Settings className="h-4 w-4 text-slate-600 dark:text-slate-500" />
+        );
+
       case "AddMembers":
         return (
           <UserPlus className="h-4 w-4 text-green-600 dark:text-green-500" />
@@ -200,14 +237,6 @@ function ConfigActionItem({ action }: { action: ConfigAction }) {
       case "SetThreshold":
         return (
           <Shield className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-        );
-      case "SetMetadata":
-        return (
-          <FileCode className="h-4 w-4 text-purple-600 dark:text-purple-500" />
-        );
-      default:
-        return (
-          <Settings className="h-4 w-4 text-slate-600 dark:text-slate-500" />
         );
     }
   };
@@ -242,10 +271,19 @@ function ConfigActionItem({ action }: { action: ConfigAction }) {
 
 function ConfigActionContent({ action }: { action: ConfigAction }) {
   switch (action.__kind) {
-    case "SetMembers":
-    case "AddMembers":
+    case "EditPermissions":
       return (
         <MembersDisplay members={action.fields[0]} actionKind={action.__kind} />
+      );
+    case "AddMembers":
+      return (
+        <MembersDisplay
+          members={action.fields[0].map((x) => ({
+            pubkey: x.data.pubkey,
+            permissions: x.data.permissions,
+          }))}
+          actionKind={action.__kind}
+        />
       );
     case "RemoveMembers":
       return <MemberKeysDisplay memberKeys={action.fields[0]} />;
@@ -260,30 +298,78 @@ function ConfigActionContent({ action }: { action: ConfigAction }) {
           </div>
         </div>
       );
-    case "SetMetadata":
-      return (
-        <div className="p-2">
-          <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Metadata Address
-          </div>
-          <div className="font-mono text-xs mt-1 break-all text-slate-800 dark:text-slate-200">
-            {action.fields[0].__option === "Some" ? (
-              action.fields[0].value
-            ) : (
-              <span className="text-slate-500 dark:text-slate-400">null</span>
-            )}
-          </div>
-        </div>
-      );
   }
+}
+
+function AddMemberDisplay({ data }: { data: Transaction }) {
+  const [multiWallet, setMultiWallet] = useState("");
+  useEffect(() => {
+    getMultiWalletFromSettings(address(data.transactionAddress)).then(
+      (response) => setMultiWallet(response)
+    );
+  }, [data]);
+
+  const formatAddress = (address: string) => {
+    if (!address || address.length < 10) return address;
+    return `${address.substring(0, 6)}...${address.substring(
+      address.length - 4
+    )}`;
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+        <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-50 dark:bg-emerald-950">
+          <UserPlus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        {data.label.value}
+      </div>
+
+      <Card className="overflow-hidden border-0 shadow-md dark:shadow-slate-950/20">
+        <CardContent className="p-0">
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/60">
+            <div className="mb-3">
+              <Badge
+                variant="outline"
+                className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 px-2 py-1 h-auto font-normal"
+              >
+                <LinkIcon className="h-3 w-3 mr-1.5 text-amber-600 dark:text-amber-500" />
+                Requesting to link passkey
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800">
+                <Wallet className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Wallet
+                  </span>
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {formatAddress(multiWallet.toString())}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 pl-9.5">
+              This allows you to co-sign transactions on behalf of the wallet
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function MembersDisplay({
   members,
   actionKind,
 }: {
-  members: MemberWithVerifyArgs[];
-  actionKind: string;
+  members: MemberKeyWithPermissionsArgs[];
+  actionKind: "AddMembers" | "EditPermissions";
 }) {
   if (members.length === 0) {
     return (
@@ -296,8 +382,9 @@ function MembersDisplay({
   return (
     <div className="space-y-3 p-2">
       <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-        {actionKind === "SetMembers" ? "Setting" : "Adding"} {members.length}{" "}
-        Member{members.length !== 1 ? "s" : ""}
+        {actionKind === "EditPermissions" ? "Editing" : "Adding"}{" "}
+        {members.length} Member
+        {members.length !== 1 ? "s" : ""}
       </div>
       {members.map((memberWithArgs, index) => (
         <Collapsible
@@ -311,7 +398,7 @@ function MembersDisplay({
             </div>
             <Badge variant="outline" className="text-xs">
               Type:{" "}
-              {KeyType.Ed25519 === memberWithArgs.data.pubkey.keyType
+              {KeyType.Ed25519 === memberWithArgs.pubkey.keyType
                 ? "Solana Wallet Address"
                 : "Passkey"}
             </Badge>
@@ -323,7 +410,7 @@ function MembersDisplay({
                   Public Key
                 </div>
                 <div className="mt-1">
-                  <KeyDisplay memberKey={memberWithArgs.data.pubkey} />
+                  <KeyDisplay memberKey={memberWithArgs.pubkey} />
                 </div>
               </div>
 
@@ -335,28 +422,28 @@ function MembersDisplay({
                   <PermissionItem
                     name="Initiate Transaction"
                     enabled={Permissions.has(
-                      memberWithArgs.data.permissions,
+                      memberWithArgs.permissions,
                       Permission.InitiateTransaction
                     )}
                   />
                   <PermissionItem
                     name="Vote Transaction"
                     enabled={Permissions.has(
-                      memberWithArgs.data.permissions,
+                      memberWithArgs.permissions,
                       Permission.VoteTransaction
                     )}
                   />
                   <PermissionItem
                     name="Execute Transaction"
                     enabled={Permissions.has(
-                      memberWithArgs.data.permissions,
+                      memberWithArgs.permissions,
                       Permission.ExecuteTransaction
                     )}
                   />
                   <PermissionItem
                     name="Is Delegate"
                     enabled={Permissions.has(
-                      memberWithArgs.data.permissions,
+                      memberWithArgs.permissions,
                       Permission.IsDelegate
                     )}
                   />
@@ -420,9 +507,11 @@ function KeyDisplay({ memberKey }: { memberKey: MemberKey }) {
 }
 
 function IntentDisplay({
+  publicKey,
   intent,
   additionalInfo,
 }: {
+  publicKey: string;
   intent: Intent;
   additionalInfo: TransactionDetailsProps["additionalInfo"];
 }) {
@@ -431,6 +520,7 @@ function IntentDisplay({
   const [isLoadingUsername, setIsLoadingUsername] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recipient, setRecipient] = useState<string>();
+  const [sender, setSender] = useState<string>();
 
   useEffect(() => {
     const fetchToken = async () => {
@@ -465,7 +555,7 @@ function IntentDisplay({
     const fetchUsername = async () => {
       setIsLoadingUsername(true);
       try {
-        if (!additionalInfo?.recipient) {
+        if (!additionalInfo?.recipient && !publicKey) {
           setIsLoadingUsername(false);
           return;
         }
@@ -495,6 +585,26 @@ function IntentDisplay({
             // Silently fail and keep using the address
           }
         }
+
+        if (publicKey) {
+          try {
+            const response = await fetch(
+              `https://passkeys.revibase.com?publicKey=${publicKey}`
+            );
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = (await response.json()) as Payload;
+            if (result.username) {
+              setSender(result.username);
+            }
+          } catch (fetchError) {
+            console.error("Error fetching username:", fetchError);
+            // Silently fail and keep using the address
+          }
+        }
       } catch (error) {
         console.error("Error in username resolution:", error);
         // Silently fail and keep using the address
@@ -504,7 +614,7 @@ function IntentDisplay({
     };
 
     fetchUsername();
-  }, [additionalInfo, intent.destination]);
+  }, [additionalInfo, intent.destination, publicKey]);
 
   const amount = useMemo(
     () => Number(intent.amount) / 10 ** (asset?.token_info?.decimals ?? 0),
@@ -636,7 +746,7 @@ function IntentDisplay({
           <div className="text-xs text-muted-foreground mb-0.5">From</div>
           <div className="font-medium text-sm flex items-center">
             <div className="bg-primary/10 text-primary px-1.5 py-0.5 text-xs rounded-md">
-              Your Wallet
+              {sender ?? "Your Wallet"}
             </div>
           </div>
         </div>

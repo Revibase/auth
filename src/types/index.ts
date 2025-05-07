@@ -2,11 +2,6 @@ import { TransactionActionType } from "@revibase/passkeys-sdk";
 import { ConfigAction, CustomTransactionMessage } from "@revibase/sdk";
 import { Address } from "@solana/kit";
 
-export interface SessionToken {
-  token: string;
-  signature: string;
-}
-
 export interface Payload {
   credentialId: string;
   username: string;

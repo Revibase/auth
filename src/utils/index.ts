@@ -8,82 +8,19 @@ import {
 import { base64URLStringToBuffer } from "@simplewebauthn/browser";
 import {
   address,
-  Address,
   createSolanaRpc,
-  createSolanaRpcSubscriptions,
   getAddressDecoder,
   getBase58Decoder,
   getBase58Encoder,
-  getBase64Decoder,
   getBase64Encoder,
   getU64Decoder,
   getUtf8Encoder,
   Rpc,
-  sendAndConfirmTransactionFactory,
-  SignatureBytes,
   SolanaRpcApi,
-  TransactionSigner,
 } from "@solana/kit";
 const conectionEndpoint = "https://rpc.revibase.com";
 export const rpc = createSolanaRpc(conectionEndpoint);
 export const rpId = "revibase.com";
-export const sendAndConfirm = sendAndConfirmTransactionFactory({
-  rpc,
-  rpcSubscriptions: createSolanaRpcSubscriptions("wss://api.devnet.solana.com"),
-});
-
-function createTransactionSigner(
-  address: Address,
-  sessionToken: { token: string; signature: string }
-) {
-  return {
-    address,
-    signTransactions(transactions) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const signatures = await Promise.all(
-            transactions.map(async (x) => {
-              const signatureResponse = await fetch(
-                "https://payers.revibase.com/sign",
-                {
-                  method: "POST",
-                  body: JSON.stringify({
-                    publicKey: address.toString(),
-                    transaction: getBase64Decoder().decode(x.messageBytes),
-                    ...sessionToken,
-                  }),
-                }
-              );
-              if (!signatureResponse.ok) {
-                throw new Error(await signatureResponse.text());
-              }
-              const { signature } = (await signatureResponse.json()) as {
-                signature: string;
-              };
-
-              if (signature) {
-                return getBase64Encoder().encode(signature);
-              }
-              return;
-            })
-          );
-          resolve(signatures.map((x) => ({ [address]: x as SignatureBytes })));
-        } catch (error) {
-          reject(error);
-        }
-      });
-    },
-  } as TransactionSigner;
-}
-
-export function getRandomPayer(sessionToken: {
-  token: string;
-  signature: string;
-}) {
-  const payer = address("CrDrYQs5fux37ZfdLeSFPEM6BUFH2WcyrvWm16bGMHMw");
-
-  return createTransactionSigner(payer, sessionToken);
-}
 
 export async function createTransactionChallenge({
   rpc,
@@ -153,9 +90,7 @@ export const parsedTransaction = (
   let deserializedTxMessage;
   switch (transactionActionType) {
     case "add_new_member":
-      deserializedTxMessage = `${
-        new URL(redirectUrl).hostname
-      } wants to link your passkey to a multisig wallet.`;
+      deserializedTxMessage = `${new URL(redirectUrl).hostname}`;
       break;
     case "change_config":
       deserializedTxMessage = deserializeConfigActions(
@@ -175,7 +110,7 @@ export const parsedTransaction = (
       );
       break;
     case "close":
-      deserializedTxMessage = `Closing ${transactionAddress} to reclaim rent fees.`;
+      deserializedTxMessage = `Closing transaction ${transactionAddress} to reclaim rent fees.`;
       break;
     default:
       deserializedTxMessage = customTransactionMessageDeserialize(
@@ -203,10 +138,10 @@ export const parsedTransaction = (
       value: "Execute Transaction",
       variant: "default",
     },
-    vote: { value: "Vote Transaction", variant: "outline" },
-    close: { value: "Close Pending Transaction", variant: "destructive" },
+    vote: { value: "Approve Transaction", variant: "outline" },
+    close: { value: "Close Transaction", variant: "destructive" },
     sync: {
-      value: "Create And Execute Transaction Synchronously",
+      value: "Create And Execute Transaction (Sync)",
       variant: "default",
     },
     change_config: { value: "Change Config", variant: "default" },

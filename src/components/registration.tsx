@@ -11,43 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { SessionToken } from "@/types";
+import { rpId } from "@/utils";
 import {
-  createTransactionChallenge,
-  getRandomPayer,
-  rpc,
-  rpId,
-  sendAndConfirm,
-} from "@/utils";
-import { Turnstile } from "@marsidev/react-turnstile";
-import { convertSignatureDERtoRS } from "@revibase/passkeys-sdk";
-import {
-  createWallet,
-  getDomainConfig,
-  getSecp256r1PubkeyDecoder,
-  getSecp256r1SignatureDecoder,
-  getSettingsFromCreateKey,
-  Permissions,
-  Secp256r1Key,
-  type Secp256r1VerifyArgs,
-} from "@revibase/sdk";
-import {
-  base64URLStringToBuffer,
   bufferToBase64URLString,
   type PublicKeyCredentialHint,
-  startAuthentication,
   startRegistration,
 } from "@simplewebauthn/browser";
-import {
-  appendTransactionMessageInstructions,
-  createTransactionMessage,
-  getAddressDecoder,
-  getBase58Encoder,
-  pipe,
-  setTransactionMessageFeePayerSigner,
-  setTransactionMessageLifetimeUsingBlockhash,
-  signTransactionMessageWithSigners,
-} from "@solana/kit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -118,38 +87,6 @@ const CreatingStage = memo(({ username }: { username: string }) => (
   </motion.div>
 ));
 CreatingStage.displayName = "CreatingStage";
-
-const VerifyingStage = memo(() => (
-  <motion.div
-    key="verifying"
-    {...slideInRight}
-    className="flex flex-col items-center justify-center py-6 space-y-4"
-  >
-    <div className="relative">
-      <div className="w-12 h-12 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      <motion.div
-        initial={{ scale: 1 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.5, duration: 0.5 }}
-        className="absolute inset-0 flex items-center justify-center"
-      >
-        <Fingerprint className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
-      </motion.div>
-    </div>
-    <p className="text-sm text-slate-600 dark:text-slate-400">
-      Setting up your secure wallet
-    </p>
-    <div className="w-full max-w-[200px] h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-      <motion.div
-        initial={{ width: "0%" }}
-        animate={{ width: "100%" }}
-        transition={{ duration: 3 }}
-        className="h-full bg-emerald-500 rounded-full"
-      />
-    </div>
-  </motion.div>
-));
-VerifyingStage.displayName = "VerifyingStage";
 
 const CompleteStage = memo(() => (
   <motion.div
@@ -238,7 +175,6 @@ export const Registration: FC<{
   redirectUrl: string | null;
   hints?: PublicKeyCredentialHint[];
 }> = ({ redirectUrl, hints }) => {
-  const [sessionToken, setSessionToken] = useState<SessionToken | null>(null);
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -246,7 +182,7 @@ export const Registration: FC<{
   const [countdown, setCountdown] = useState<number>(2);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [registrationStage, setRegistrationStage] = useState<
-    "input" | "creating" | "verifying" | "complete"
+    "input" | "creating" | "complete"
   >("input");
 
   // Memoized stage title
@@ -254,8 +190,6 @@ export const Registration: FC<{
     switch (registrationStage) {
       case "creating":
         return "Creating Passkey";
-      case "verifying":
-        return "Setting Up Wallet";
       case "complete":
         return "Account Created";
       default:
@@ -283,106 +217,8 @@ export const Registration: FC<{
     }
   }, [redirectUrl, username, pubKey]);
 
-  const handleCreateWallet = useCallback(
-    async (publicKey: string, credentialId: string, transports: string) => {
-      try {
-        setRegistrationStage("verifying");
-
-        if (!sessionToken) {
-          throw new Error("Session Token is null");
-        }
-        const feePayer = getRandomPayer(sessionToken);
-        const createKey = getAddressDecoder().decode(
-          crypto.getRandomValues(new Uint8Array(32))
-        );
-        const settings = await getSettingsFromCreateKey(createKey);
-        const { slotNumber, slotHash, challenge } =
-          await createTransactionChallenge({
-            rpc,
-            transactionActionType: "add_new_member",
-            transactionAddress: settings,
-            transactionMessageBytes: new TextEncoder().encode(rpId)
-              .buffer as ArrayBuffer,
-          });
-        const { response } = await startAuthentication({
-          optionsJSON: {
-            rpId,
-            challenge: bufferToBase64URLString(challenge.buffer as ArrayBuffer),
-            allowCredentials: [
-              {
-                type: "public-key",
-                id: credentialId,
-                transports: transports.split(",") as AuthenticatorTransport[],
-              },
-            ],
-            hints,
-          },
-        });
-
-        const authData = new Uint8Array(
-          base64URLStringToBuffer(response.authenticatorData)
-        );
-        const clientDataJson = new Uint8Array(
-          base64URLStringToBuffer(response.clientDataJSON)
-        );
-        const signature = convertSignatureDERtoRS(
-          new Uint8Array(base64URLStringToBuffer(response.signature))
-        );
-        const truncatedAuthData = authData.subarray(32, authData.length);
-
-        const verifyArgs: Secp256r1VerifyArgs = {
-          signature: getSecp256r1SignatureDecoder().decode(signature),
-          pubkey: getSecp256r1PubkeyDecoder().decode(
-            getBase58Encoder().encode(publicKey)
-          ),
-          truncatedAuthData: truncatedAuthData,
-          clientDataJson: clientDataJson,
-          slotNumber: BigInt(slotNumber),
-          slotHash: getBase58Encoder().encode(slotHash),
-        };
-
-        const domainConfig = await getDomainConfig({ rpId });
-
-        const createWalletIx = await createWallet({
-          createKey,
-          feePayer,
-          initialMembers: [
-            {
-              pubkey: new Secp256r1Key(publicKey, verifyArgs, domainConfig),
-              permissions: Permissions.all(),
-              metadata: domainConfig,
-            },
-          ],
-          metadata: null,
-        });
-
-        const latestBlockHash = await rpc.getLatestBlockhash().send();
-        const tx = await pipe(
-          createTransactionMessage({ version: 0 }),
-          (tx) => appendTransactionMessageInstructions([createWalletIx], tx),
-          (tx) => setTransactionMessageFeePayerSigner(feePayer, tx),
-          (tx) =>
-            setTransactionMessageLifetimeUsingBlockhash(
-              latestBlockHash.value,
-              tx
-            ),
-          async (tx) => await signTransactionMessageWithSigners(tx)
-        );
-        await sendAndConfirm(tx, {
-          commitment: "confirmed",
-        });
-        setPubkey(publicKey);
-        setRegistrationStage("complete");
-      } catch (error) {
-        setRegistrationStage("input");
-        throw error;
-      }
-    },
-    [sessionToken, hints]
-  );
-
   const handleRegister = useCallback(async () => {
-    if (!username.trim() || !sessionToken) return;
+    if (!username.trim()) return;
 
     try {
       setLoading(true);
@@ -431,20 +267,18 @@ export const Registration: FC<{
       if (request.status !== 200) {
         throw new Error(await request.text());
       }
-      const { publicKey, credentialId, transports } =
-        (await request.json()) as {
-          publicKey: string;
-          credentialId: string;
-          transports: string;
-        };
-      await handleCreateWallet(publicKey, credentialId, transports);
+      const { publicKey } = (await request.json()) as {
+        publicKey: string;
+      };
+      setPubkey(publicKey);
+      setRegistrationStage("complete");
     } catch (error) {
       setError((error as Error).message);
       setRegistrationStage("input");
     } finally {
       setLoading(false);
     }
-  }, [username, handleCreateWallet, hints, sessionToken]);
+  }, [username, hints]);
 
   // Handle countdown and redirect
   useEffect(() => {
@@ -468,28 +302,6 @@ export const Registration: FC<{
       }
     };
   }, [pubKey, handleRedirectNow]);
-
-  // Handle Turnstile token verification
-  const handleTurnstileSuccess = useCallback(async (token: string) => {
-    try {
-      const result = await fetch("https://payers.revibase.com/verify", {
-        method: "POST",
-        body: JSON.stringify({
-          "cf-turnstile-response": token,
-        }),
-      });
-      if (result.ok) {
-        const { token, signature } = (await result.json()) as {
-          token: string;
-          signature: string;
-        };
-        setSessionToken({ token, signature });
-      }
-    } catch (error) {
-      console.error("Error verifying token:", error);
-      setError("Failed to verify security token. Please try again.");
-    }
-  }, []);
 
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
@@ -517,8 +329,6 @@ export const Registration: FC<{
                   />
                 ) : registrationStage === "creating" ? (
                   <CreatingStage username={username} />
-                ) : registrationStage === "verifying" ? (
-                  <VerifyingStage />
                 ) : (
                   <CompleteStage />
                 )}
@@ -531,22 +341,11 @@ export const Registration: FC<{
             <CardFooter className="flex flex-col space-y-3 pt-2">
               <AnimatePresence mode="wait" initial={false}>
                 {registrationStage === "input" ? (
-                  <>
-                    <Turnstile
-                      siteKey={
-                        process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_TOKEN!
-                      }
-                      onExpire={() => {
-                        setSessionToken(null);
-                      }}
-                      onSuccess={handleTurnstileSuccess}
-                    />
-                    <RegisterButton
-                      onClick={handleRegister}
-                      disabled={loading || !username.trim() || !sessionToken}
-                      loading={loading}
-                    />
-                  </>
+                  <RegisterButton
+                    onClick={handleRegister}
+                    disabled={loading || !username.trim()}
+                    loading={loading}
+                  />
                 ) : registrationStage === "complete" && countdown === 0 ? (
                   <motion.div key="redirect-button" {...slideIn}>
                     <RedirectButton onClick={handleRedirectNow} />
