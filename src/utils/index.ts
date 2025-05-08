@@ -1,14 +1,15 @@
 import { ParsedTransaction } from "@/types";
 import { DAS } from "@/types/DAS";
-import { TransactionActionType } from "@revibase/passkeys-sdk";
 import {
   customTransactionMessageDeserialize,
   deserializeConfigActions,
-} from "@revibase/sdk";
+  TransactionActionType,
+} from "@revibase/wallet-sdk";
 import { base64URLStringToBuffer } from "@simplewebauthn/browser";
 import {
   address,
   createSolanaRpc,
+  GetAccountInfoApi,
   getAddressDecoder,
   getBase58Decoder,
   getBase58Encoder,
@@ -16,7 +17,6 @@ import {
   getU64Decoder,
   getUtf8Encoder,
   Rpc,
-  SolanaRpcApi,
 } from "@solana/kit";
 const conectionEndpoint = "https://rpc.revibase.com";
 export const rpc = createSolanaRpc(conectionEndpoint);
@@ -28,7 +28,7 @@ export async function createTransactionChallenge({
   transactionAddress,
   transactionMessageBytes,
 }: {
-  rpc: Rpc<SolanaRpcApi>;
+  rpc: Rpc<GetAccountInfoApi>;
   transactionActionType: TransactionActionType;
   transactionAddress: string;
   transactionMessageBytes: ArrayBuffer;

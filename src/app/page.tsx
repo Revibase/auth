@@ -4,7 +4,7 @@ import { AuthenticationStatus } from "@/components/authentication-status";
 import { Registration } from "@/components/registration";
 import { TransactionActions } from "@/components/transaction-actions";
 import { TransactionDetails } from "@/components/transaction-details";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -15,7 +15,7 @@ import {
 import { usePopupMessaging } from "@/hooks/usePopupMessaging";
 import { initialState, reducer } from "@/state/reducer";
 import { isValidUrl } from "@/utils";
-import { AlertCircle, ExternalLink, ShieldCheck } from "lucide-react";
+import { ExternalLink, ShieldCheck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useReducer } from "react";
 
@@ -50,19 +50,19 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 ">
       <div className="container flex-col gap-4 max-w-lg mx-auto flex items-center justify-center p-4">
         <div className="w-full">
-          <Card className="w-full shadow-lg border-slate-200 dark:border-slate-800">
+          <Card className="w-full shadow-lg border-slate-200 ">
             <CardHeader className="space-y-4 items-center justify-center pb-4">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800">
-                <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 ">
+                <ShieldCheck className="h-6 w-6 text-emerald-600 " />
               </div>
               <div className="space-y-1 text-center">
                 {urlHostname && (
                   <CardTitle className="text-base font-medium text-center">
                     <a
-                      className="flex items-center justify-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                      className="flex items-center justify-center gap-1 text-slate-600 hover:text-slate-800 transition-colors"
                       href={redirectUrl || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -85,23 +85,10 @@ export default function Home() {
                 />
               )}
               {error && (
-                <Alert
-                  variant="destructive"
-                  className="flex items-center gap-2"
-                >
-                  <AlertCircle className="h-4 w-4" />
+                <Alert variant="destructive">
+                  <AlertTitle>{"Error"}</AlertTitle>
                   <AlertDescription className="break-words whitespace-pre-wrap">
-                    <span className="font-medium">Error: </span>
-                    {error.includes("AbortError") ||
-                    error.includes("ERROR_CEREMONY_ABORTED")
-                      ? "Authentication was cancelled."
-                      : error}
-                    {error.includes("not registered") && (
-                      <p className="mt-1 text-xs">
-                        You need to register this passkey first before using it
-                        for authentication.
-                      </p>
-                    )}
+                    {error}
                   </AlertDescription>
                 </Alert>
               )}
@@ -113,7 +100,6 @@ export default function Home() {
                   <AuthenticationStatus
                     countdown={countdown}
                     onRedirectNow={handleRedirectNow}
-                    isLoading={isLoading}
                   />
                 ) : (
                   <TransactionActions

@@ -1,5 +1,8 @@
-import { TransactionActionType } from "@revibase/passkeys-sdk";
-import { ConfigAction, CustomTransactionMessage } from "@revibase/sdk";
+import {
+  ConfigAction,
+  CustomTransactionMessage,
+  TransactionActionType,
+} from "@revibase/wallet-sdk";
 import { Address } from "@solana/kit";
 
 export interface Payload {
