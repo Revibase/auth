@@ -1,6 +1,6 @@
 import { Action } from "@/state/reducer";
-import { Data, Payload } from "@/types";
-import { createTransactionChallenge, rpc, rpId } from "@/utils";
+import { DataPayload, PasskeyPayload } from "@/types";
+import { createTransactionChallenge, DATABASE_ENDPOINT, RP_ID } from "@/utils";
 import {
   bufferToBase64URLString,
   PublicKeyCredentialHint,
@@ -22,7 +22,7 @@ export const TransactionActions = memo(
     data,
     isLoading,
   }: {
-    data: Data | null;
+    data: DataPayload | null;
     dispatch: React.Dispatch<Action>;
     publicKey?: string;
     hints?: PublicKeyCredentialHint[];
@@ -36,16 +36,16 @@ export const TransactionActions = memo(
       try {
         setLoading(true);
         dispatch({ type: "SET_ERROR", payload: null });
-        let payload: Payload | null = null;
+        let payload: PasskeyPayload | null = null;
         let challenge: Uint8Array | null = null;
         let slotHash: string | null = null;
         let slotNumber: string | null = null;
 
         if (publicKey) {
           const response = await fetch(
-            `https://passkeys.revibase.com?publicKey=${publicKey}`
+            `${DATABASE_ENDPOINT}?publicKey=${publicKey}`
           );
-          const result = (await response.json()) as Payload;
+          const result = (await response.json()) as PasskeyPayload;
           if (result.publicKey && publicKey !== result.publicKey) {
             throw new Error("PublicKey mismatch");
           }
@@ -56,14 +56,14 @@ export const TransactionActions = memo(
           challenge = new Uint8Array(getUtf8Encoder().encode(data.payload));
         } else if (data.type === "transaction") {
           ({ slotNumber, slotHash, challenge } =
-            await createTransactionChallenge({ rpc, ...data }));
+            await createTransactionChallenge(data));
         }
 
         if (!challenge) throw new Error("Invalid challenge message.");
 
         const assertionResponse = await startAuthentication({
           optionsJSON: {
-            rpId,
+            rpId: RP_ID,
             challenge: bufferToBase64URLString(challenge.buffer as ArrayBuffer),
             allowCredentials: payload?.credentialId
               ? [
@@ -82,9 +82,9 @@ export const TransactionActions = memo(
 
         if (!payload) {
           const response = await fetch(
-            `https://passkeys.revibase.com?credentialId=${assertionResponse.id}`
+            `${DATABASE_ENDPOINT}?credentialId=${assertionResponse.id}`
           );
-          const result = (await response.json()) as Payload;
+          const result = (await response.json()) as PasskeyPayload;
           payload = result;
         }
 

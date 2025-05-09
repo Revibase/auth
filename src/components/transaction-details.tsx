@@ -2,9 +2,13 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { Data, Intent, Payload, Transaction } from "@/types";
-import type { DAS } from "@/types/DAS";
-import { getAsset, proxify, rpc, SOL_NATIVE_MINT } from "@/utils";
+import type {
+  DataPayload,
+  IntentPayload,
+  PasskeyPayload,
+  TransactionPayload,
+} from "@/types";
+import { DATABASE_ENDPOINT, getAsset, proxify, rpc } from "@/utils";
 import {
   type ConfigAction,
   convertMemberKeyToString,
@@ -45,7 +49,7 @@ import {
 import { Skeleton } from "./ui/skeleton";
 
 interface TransactionDetailsProps {
-  data: Data | null;
+  data: DataPayload | null;
   publicKey: string;
   isLoading: boolean;
   additionalInfo?: any;
@@ -126,7 +130,7 @@ const MessageContent = React.memo(
     publicKey,
     additionalInfo,
   }: {
-    data: Data;
+    data: DataPayload;
     publicKey: string;
     additionalInfo: TransactionDetailsProps["additionalInfo"];
   }) => {
@@ -196,7 +200,7 @@ const MessageContent = React.memo(
             {data.label.value}
           </Badge>
           <IntentDisplay
-            intent={data.deserializedTxMessage as Intent}
+            intent={data.deserializedTxMessage as IntentPayload}
             additionalInfo={additionalInfo}
             publicKey={publicKey}
           />
@@ -327,82 +331,84 @@ const ConfigActionContent = React.memo(
 ConfigActionContent.displayName = "ConfigActionContent";
 
 // Memoized AddMemberDisplay component with optimized data fetching
-const AddMemberDisplay = React.memo(({ data }: { data: Transaction }) => {
-  const [multiWallet, setMultiWallet] = useState("");
+const AddMemberDisplay = React.memo(
+  ({ data }: { data: TransactionPayload }) => {
+    const [multiWallet, setMultiWallet] = useState("");
 
-  useEffect(() => {
-    let isMounted = true;
+    useEffect(() => {
+      let isMounted = true;
 
-    const fetchWallet = async () => {
-      try {
-        const response = await getMultiWalletFromSettings(
-          address(data.transactionAddress)
-        );
-        if (isMounted) {
-          setMultiWallet(response);
+      const fetchWallet = async () => {
+        try {
+          const response = await getMultiWalletFromSettings(
+            address(data.transactionAddress)
+          );
+          if (isMounted) {
+            setMultiWallet(response);
+          }
+        } catch (error) {
+          console.error("Error fetching wallet:", error);
         }
-      } catch (error) {
-        console.error("Error fetching wallet:", error);
-      }
-    };
+      };
 
-    fetchWallet();
+      fetchWallet();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [data.transactionAddress]);
+      return () => {
+        isMounted = false;
+      };
+    }, [data.transactionAddress]);
 
-  const formattedAddress = useMemo(
-    () => formatAddress(multiWallet.toString()),
-    [multiWallet]
-  );
+    const formattedAddress = useMemo(
+      () => formatAddress(multiWallet.toString()),
+      [multiWallet]
+    );
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-        <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-50 dark:bg-emerald-950">
-          <UserPlus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-        </div>
-        {data.label.value}
-      </div>
-
-      <div>
-        <div className="p-3 bg-slate-50 dark:bg-slate-900/60">
-          <div className="mb-3">
-            <Badge
-              variant="outline"
-              className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 px-2 py-1 h-auto font-normal"
-            >
-              <LinkIcon className="h-3 w-3 mr-1.5 text-amber-600 dark:text-amber-500" />
-              Requesting to link passkey
-            </Badge>
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-50 dark:bg-emerald-950">
+            <UserPlus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
           </div>
+          {data.label.value}
+        </div>
 
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800">
-              <Wallet className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+        <div>
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/60">
+            <div className="mb-3">
+              <Badge
+                variant="outline"
+                className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 px-2 py-1 h-auto font-normal"
+              >
+                <LinkIcon className="h-3 w-3 mr-1.5 text-amber-600 dark:text-amber-500" />
+                Requesting to link passkey
+              </Badge>
             </div>
-            <div className="flex-1">
-              <div className="flex flex-col">
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Wallet
-                </span>
-                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                  {formattedAddress}
-                </span>
+
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800">
+                <Wallet className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Wallet
+                  </span>
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {formattedAddress}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 pl-9.5">
-            This allows you to co-sign transactions on behalf of the wallet
-          </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 pl-9.5">
+              This allows you to co-sign transactions on behalf of the wallet
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 AddMemberDisplay.displayName = "AddMemberDisplay";
 
 // Memoized MembersDisplay component
@@ -570,10 +576,10 @@ const IntentDisplay = React.memo(
     additionalInfo,
   }: {
     publicKey: string;
-    intent: Intent;
+    intent: IntentPayload;
     additionalInfo: TransactionDetailsProps["additionalInfo"];
   }) => {
-    const [asset, setAsset] = useState<DAS.GetAssetResponse | null>(null);
+    const [asset, setAsset] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingUsername, setIsLoadingUsername] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -598,17 +604,24 @@ const IntentDisplay = React.memo(
             const wSol = await getAsset(
               address("So11111111111111111111111111111111111111112")
             );
-
             if (!isMounted) return;
-
-            setAsset(
-              SOL_NATIVE_MINT({
-                lamports: 0,
-                price_per_sol:
-                  wSol?.token_info?.price_info?.price_per_token || 0,
-                total_price: 0,
-              })
-            );
+            setAsset({
+              content: {
+                links: {
+                  image:
+                    "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+                },
+                metadata: { name: "Solana", symbol: "SOL", description: "" },
+              },
+              id: "native",
+              token_info: {
+                decimals: 9,
+                price_info: {
+                  currency: "USDC",
+                  price_per_token: wSol.token_info?.price_per_sol || 0,
+                },
+              },
+            });
           } else {
             const assetData = await getAsset(intent.mint.toString());
             if (isMounted) {
@@ -659,8 +672,7 @@ const IntentDisplay = React.memo(
               ) {
                 try {
                   const response = await fetch(
-                    `https://passkeys.revibase.com?publicKey=${additionalInfo.recipient}`,
-                    { signal: AbortSignal.timeout(5000) } // Add timeout
+                    `${DATABASE_ENDPOINT}?publicKey=${additionalInfo.recipient}`
                   );
 
                   if (!isMounted) return;
@@ -669,7 +681,7 @@ const IntentDisplay = React.memo(
                     throw new Error(`HTTP error! Status: ${response.status}`);
                   }
 
-                  const result = (await response.json()) as Payload;
+                  const result = (await response.json()) as PasskeyPayload;
                   if (result.username) {
                     usernameData.recipient = result.username;
                   }
@@ -690,7 +702,7 @@ const IntentDisplay = React.memo(
           if (publicKey && isMounted) {
             try {
               const response = await fetch(
-                `https://passkeys.revibase.com?publicKey=${publicKey}`,
+                `${DATABASE_ENDPOINT}?publicKey=${publicKey}`,
                 { signal: AbortSignal.timeout(5000) } // Add timeout
               );
 
@@ -700,7 +712,7 @@ const IntentDisplay = React.memo(
                 throw new Error(`HTTP error! Status: ${response.status}`);
               }
 
-              const result = (await response.json()) as Payload;
+              const result = (await response.json()) as PasskeyPayload;
               if (result.username) {
                 usernameData.sender = result.username;
               }

@@ -1,4 +1,4 @@
-import { Data, Message, Transaction } from "@/types";
+import { DataPayload, MessagePayload, TransactionPayload } from "@/types";
 import { parsedTransaction } from "@/utils";
 import { PublicKeyCredentialHint } from "@simplewebauthn/browser";
 
@@ -7,7 +7,7 @@ export type State = {
   error: string | null;
   response: string | null;
   publicKey: string;
-  data: Data | null;
+  data: DataPayload | null;
   isRegister: boolean;
   hints?: PublicKeyCredentialHint[];
   countdown: number;
@@ -21,7 +21,7 @@ export type Action =
   | { type: "ADD_RESPONSE"; payload: string }
   | { type: "RESET_RESPONSE" }
   | { type: "SET_PUBLIC_KEY"; payload: string }
-  | { type: "SET_DATA"; payload: Data }
+  | { type: "SET_DATA"; payload: DataPayload }
   | { type: "SET_IS_REGISTER"; payload: boolean }
   | { type: "SET_HINTS"; payload: PublicKeyCredentialHint[] | undefined }
   | { type: "DECREMENT_COUNTDOWN" }
@@ -82,7 +82,7 @@ export function reducer(state: State, action: Action): State {
         ? ({
             type: "message",
             payload: action.payload.data?.payload,
-          } as Message)
+          } as MessagePayload)
         : ({
             type: "transaction",
             payload: action.payload.data.payload,
@@ -90,7 +90,7 @@ export function reducer(state: State, action: Action): State {
               action.payload.data.payload,
               action.redirectUrl
             ),
-          } as Transaction);
+          } as TransactionPayload);
 
       return {
         ...state,

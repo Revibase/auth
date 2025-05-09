@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { rpId } from "@/utils";
+import { DATABASE_ENDPOINT, RP_ID, RP_NAME } from "@/utils";
 import {
   bufferToBase64URLString,
   type PublicKeyCredentialHint,
@@ -226,7 +226,7 @@ export const Registration: FC<{
       setRegistrationStage("creating");
 
       const result = await fetch(
-        `https://passkeys.revibase.com?username=${username}&challenge=true`
+        `${DATABASE_ENDPOINT}?username=${username}&challenge=true`
       );
       if (result.status !== 200) {
         throw new Error(await result.text());
@@ -237,7 +237,7 @@ export const Registration: FC<{
       const response = await startRegistration({
         optionsJSON: {
           hints,
-          rp: { id: rpId, name: "Revibase" },
+          rp: { id: RP_ID, name: RP_NAME },
           challenge,
           user: {
             id: bufferToBase64URLString(
@@ -251,13 +251,13 @@ export const Registration: FC<{
             { alg: -257, type: "public-key" },
           ],
           authenticatorSelection: {
-            userVerification: "preferred",
+            userVerification: "discouraged",
             requireResidentKey: true,
             residentKey: "required",
           },
         },
       });
-      const request = await fetch(`https://passkeys.revibase.com`, {
+      const request = await fetch(DATABASE_ENDPOINT, {
         method: "POST",
         body: JSON.stringify({
           username,

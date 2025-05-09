@@ -5,7 +5,7 @@ import {
 } from "@revibase/wallet-sdk";
 import { Address } from "@solana/kit";
 
-export interface Payload {
+export interface PasskeyPayload {
   credentialId: string;
   username: string;
   publicKey: string;
@@ -16,7 +16,7 @@ export interface SessionToken {
   signature: string;
 }
 
-export type Message = {
+export type MessagePayload = {
   type: "message";
   payload: string;
 };
@@ -33,18 +33,18 @@ export type ParsedTransaction = {
     | ConfigAction[]
     | string
     | null
-    | Intent
+    | IntentPayload
     | CustomTransactionMessage;
 };
 
-export type Intent = {
+export type IntentPayload = {
   amount: bigint;
   destination: Address;
   mint: Address;
 };
-export type Transaction = {
+export type TransactionPayload = {
   type: "transaction";
   payload: string;
 } & ParsedTransaction;
 
-export type Data = Message | Transaction;
+export type DataPayload = MessagePayload | TransactionPayload;

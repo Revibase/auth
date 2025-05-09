@@ -1,3 +1,4 @@
+import { RP_NAME } from "@/utils";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Revibase",
+  title: RP_NAME,
   description: "Sign Transactions with Passkeys",
 };
 
