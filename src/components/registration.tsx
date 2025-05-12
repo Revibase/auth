@@ -423,12 +423,6 @@ export const Registration: FC<{
     setLoading(false);
   }, []);
 
-  const retryWalletCreation = useCallback(() => {
-    setError(null);
-    setRegistrationStage("creating");
-    handleCreateWallet();
-  }, []);
-
   const handleCreateWallet = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -662,7 +656,7 @@ export const Registration: FC<{
         return (
           <ErrorStage
             error={error}
-            onRetry={retryWalletCreation}
+            onRetry={handleCreateWallet}
             message="Wallet creation failed"
             retryText="Retry Wallet Creation"
           />
