@@ -46,7 +46,13 @@ export default function Home() {
   }, [redirectUrl]);
 
   if (isRegister) {
-    return <Registration hints={hints} redirectUrl={redirectUrl} />;
+    return (
+      <Registration
+        hints={hints}
+        redirectUrl={redirectUrl}
+        onReturn={() => dispatch({ type: "SET_IS_REGISTER", payload: false })}
+      />
+    );
   }
 
   return (

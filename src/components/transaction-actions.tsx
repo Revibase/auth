@@ -137,12 +137,13 @@ export const TransactionActions = memo(
         {data?.type === "message" && (
           <Button
             variant="link"
+            size={"lg"}
             className="w-full"
             disabled={loading || isLoading}
             onClick={() => dispatch({ type: "SET_IS_REGISTER", payload: true })}
           >
             <span className="flex items-center gap-2">
-              No Account? Click here to register.
+              No Account? Click here to Register
             </span>
           </Button>
         )}

@@ -290,33 +290,47 @@ ErrorAlert.displayName = "ErrorAlert";
 
 const RegisterButton = memo(
   ({
+    onReturn,
     onClick,
     disabled,
     loading,
   }: {
+    onReturn?: () => void;
     onClick: () => void;
     disabled: boolean;
     loading: boolean;
   }) => (
-    <Button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full relative overflow-hidden group"
-      size="lg"
-    >
-      {loading ? (
-        <span className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Registering account...
-        </span>
-      ) : (
-        <span className="flex items-center gap-2">
-          <Fingerprint className="h-5 w-5" />
-          Register
-          <span className="absolute inset-0 w-full h-full bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
-        </span>
+    <>
+      <Button
+        onClick={onClick}
+        disabled={disabled}
+        className="w-full relative overflow-hidden group"
+        size="lg"
+      >
+        {loading ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Registering account...
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <Fingerprint className="h-5 w-5" />
+            Register
+            <span className="absolute inset-0 w-full h-full bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+          </span>
+        )}
+      </Button>
+      {onReturn && (
+        <Button
+          variant={"ghost"}
+          size={"lg"}
+          className="w-full"
+          onClick={onReturn}
+        >
+          Back
+        </Button>
       )}
-    </Button>
+    </>
   )
 );
 RegisterButton.displayName = "RegisterButton";
@@ -352,8 +366,9 @@ RedirectButton.displayName = "RedirectButton";
 
 export const Registration: FC<{
   redirectUrl: string | null;
+  onReturn?: () => void;
   hints?: PublicKeyCredentialHint[];
-}> = ({ redirectUrl, hints }) => {
+}> = ({ redirectUrl, hints, onReturn }) => {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -665,6 +680,7 @@ export const Registration: FC<{
       case "input":
         return (
           <RegisterButton
+            onReturn={onReturn}
             onClick={handleRegister}
             disabled={loading || !username.trim()}
             loading={loading}
