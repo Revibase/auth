@@ -11,10 +11,10 @@ import { getUtf8Encoder } from "@solana/kit";
 import { motion } from "framer-motion";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
-import { Button } from "./ui/button";
-import { Skeleton } from "./ui/skeleton";
+import { Button } from "../ui/button";
+import { Skeleton } from "../ui/skeleton";
 
-export const TransactionActions = memo(
+export const AuthenticationActions = memo(
   ({
     dispatch,
     publicKey,
@@ -136,7 +136,7 @@ export const TransactionActions = memo(
         </Button>
         {data?.type === "message" && (
           <Button
-            variant="link"
+            variant="ghost"
             size={"lg"}
             className="w-full"
             disabled={loading || isLoading}
@@ -152,7 +152,7 @@ export const TransactionActions = memo(
   }
 );
 
-TransactionActions.displayName = "Footer";
+AuthenticationActions.displayName = "Footer";
 function FooterSkeleton() {
   return (
     <motion.div

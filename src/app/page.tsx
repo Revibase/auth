@@ -1,9 +1,9 @@
 "use client";
 
-import { AuthenticationStatus } from "@/components/authentication-status";
-import { Registration } from "@/components/registration";
-import { TransactionActions } from "@/components/transaction-actions";
-import { TransactionDetails } from "@/components/transaction-details";
+import { AuthenticationActions } from "@/components/authentication/authentication-actions";
+import { AuthenticationDetails } from "@/components/authentication/authentication-details";
+import { AuthenticationStatus } from "@/components/authentication/authentication-status";
+import { Registration } from "@/components/registration/main";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
@@ -12,7 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { usePopupMessaging } from "@/hooks/usePopupMessaging";
+import { useCountdownAndSend } from "@/hooks/useCountdownAndSend";
+import { useInitialize } from "@/hooks/useInitialize";
 import { initialState, reducer } from "@/state/reducer";
 import { isValidUrl } from "@/utils";
 import { ExternalLink, ShieldCheck } from "lucide-react";
@@ -23,7 +24,7 @@ export default function Home() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirectUrl");
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { handleRedirectNow } = usePopupMessaging(redirectUrl, state, dispatch);
+  useInitialize(redirectUrl, dispatch);
   const {
     error,
     response,
@@ -31,10 +32,14 @@ export default function Home() {
     data,
     isRegister,
     hints,
-    countdown,
     isLoading,
     additionalInfo,
   } = state;
+
+  const { countdown, handleRedirectNow } = useCountdownAndSend({
+    redirectUrl,
+    response,
+  });
 
   const urlHostname = useMemo(() => {
     if (redirectUrl && isValidUrl(redirectUrl)) {
@@ -50,6 +55,7 @@ export default function Home() {
       <Registration
         hints={hints}
         redirectUrl={redirectUrl}
+        message={data?.type === "message" ? data.payload : undefined}
         onReturn={() => dispatch({ type: "SET_IS_REGISTER", payload: false })}
       />
     );
@@ -83,7 +89,7 @@ export default function Home() {
 
             <CardContent className="space-y-4">
               {!response && (
-                <TransactionDetails
+                <AuthenticationDetails
                   data={data}
                   publicKey={publicKey}
                   isLoading={isLoading}
@@ -108,7 +114,7 @@ export default function Home() {
                     onRedirectNow={handleRedirectNow}
                   />
                 ) : (
-                  <TransactionActions
+                  <AuthenticationActions
                     data={data}
                     dispatch={dispatch}
                     publicKey={publicKey}

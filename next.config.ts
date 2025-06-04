@@ -37,7 +37,9 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; base-uri 'self'; frame-ancestors ${FRAME_ANCESTOR}; form-action 'self'; object-src 'none'; frame-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com; connect-src 'self' ${CONNECTION_RPC_ENDPOINT} ${DATABASE_ENDPOINT} ${PAYERS_ENDPOINT} https://cloudflareinsights.com; img-src 'self' ${PROXY_IMAGE_ENDPOINT}; font-src 'self';`,
+            value: `default-src 'self'; base-uri 'self'; frame-ancestors ${FRAME_ANCESTOR}; form-action 'self'; object-src 'none'; frame-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; connect-src 'self' ${CONNECTION_RPC_ENDPOINT} ${`wss://${
+              new URL(CONNECTION_RPC_ENDPOINT).hostname
+            }`} ${DATABASE_ENDPOINT} ${PAYERS_ENDPOINT} https://cloudflareinsights.com; img-src 'self' ${PROXY_IMAGE_ENDPOINT}; font-src 'self';`,
           },
         ],
       },

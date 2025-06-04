@@ -1,6 +1,6 @@
 "use client";
 
-import { Registration } from "@/components/registration";
+import { Registration } from "@/components/registration/main";
 import { PublicKeyCredentialHint } from "@simplewebauthn/browser";
 import { useSearchParams } from "next/navigation";
 

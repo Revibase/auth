@@ -1,49 +1,12 @@
 // components/auth/usePopupMessaging.ts
-import { Action, State } from "@/state/reducer";
+import { Action } from "@/state/reducer";
 import { isValidUrl } from "@/utils";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
-export function usePopupMessaging(
+export function useInitialize(
   redirectUrl: string | null,
-  state: State,
   dispatch: React.Dispatch<Action>
 ) {
-  const { response } = state;
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleRedirectNow = useCallback(() => {
-    if (redirectUrl && response) {
-      const target = window.opener || window.parent;
-      if (target) {
-        target.postMessage(
-          { type: "popup-complete", payload: response },
-          redirectUrl
-        );
-      }
-    }
-  }, [redirectUrl, response]);
-
-  useEffect(() => {
-    if (!response) return;
-
-    const delayStart = setTimeout(() => {
-      handleRedirectNow();
-
-      countdownIntervalRef.current = setInterval(
-        () => dispatch({ type: "DECREMENT_COUNTDOWN" }),
-        1000
-      );
-    }, 1000);
-
-    return () => {
-      clearTimeout(delayStart);
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
-    };
-  }, [response, handleRedirectNow]);
-
   // Optimized message handler
   const handleMessage = useCallback(
     (event: MessageEvent) => {
@@ -62,17 +25,10 @@ export function usePopupMessaging(
           payload: {
             data: event.data.payload.data,
             publicKey: event.data.payload.publicKey || "",
-            isRegister: event.data.payload.isRegister || false,
             hints: event.data.payload.hints,
             additionalInfo: event.data.payload.additionalInfo,
           },
         });
-
-        // Clear any existing countdown interval
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
-        }
       }
     },
     [redirectUrl]
@@ -107,6 +63,4 @@ export function usePopupMessaging(
       window.removeEventListener("pagehide", handleCloseEvent);
     };
   }, [redirectUrl, handleMessage]);
-
-  return { handleRedirectNow };
 }

@@ -14,6 +14,7 @@ import {
   getBase58Encoder,
   getBase64Decoder,
   getBase64Encoder,
+  getTransactionEncoder,
   getU64Decoder,
   getUtf8Encoder,
   sendAndConfirmTransactionFactory,
@@ -31,21 +32,16 @@ export const rpc = createSolanaRpc(CONNECTION_RPC_ENDPOINT);
 export const sendAndConfirm = sendAndConfirmTransactionFactory({
   rpc,
   rpcSubscriptions: createSolanaRpcSubscriptions(
-    CONNECTION_RPC_ENDPOINT
-      ? "wss://" + new URL(CONNECTION_RPC_ENDPOINT).hostname
-      : "wss://api.mainnet-beta.solana.com/"
+    "wss://" + new URL(CONNECTION_RPC_ENDPOINT).hostname
   ),
 });
 
-export async function fetchRandomPayer() {
+async function fetchRandomPayer() {
   const result = await fetch(`${PAYERS_ENDPOINT}`);
-  return await result.text();
+  return (await result.text()).replace(/"/g, "");
 }
 
-export async function getRandomPayer(sessionToken: {
-  token: string;
-  signature: string;
-}): Promise<TransactionSigner> {
+export async function getRandomPayer(): Promise<TransactionSigner> {
   const payer = await fetchRandomPayer();
   return {
     address: address(payer),
@@ -58,8 +54,9 @@ export async function getRandomPayer(sessionToken: {
                 method: "POST",
                 body: JSON.stringify({
                   publicKey: payer,
-                  transaction: getBase64Decoder().decode(x.messageBytes),
-                  ...sessionToken,
+                  transaction: getBase64Decoder().decode(
+                    getTransactionEncoder().encode(x)
+                  ),
                 }),
               });
               if (!signatureResponse.ok) {
@@ -69,10 +66,7 @@ export async function getRandomPayer(sessionToken: {
                 signature: string;
               };
 
-              if (signature) {
-                return getBase64Encoder().encode(signature);
-              }
-              return;
+              return getBase58Encoder().encode(signature);
             })
           );
           resolve(

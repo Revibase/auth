@@ -10,7 +10,6 @@ export type State = {
   data: DataPayload | null;
   isRegister: boolean;
   hints?: PublicKeyCredentialHint[];
-  countdown: number;
   isLoading: boolean;
   additionalInfo: any;
 };
@@ -33,7 +32,6 @@ export type Action =
       payload: {
         data?: { type: "transaction" | "message"; payload: string };
         publicKey: string;
-        isRegister: boolean;
         hints?: PublicKeyCredentialHint[];
         additionalInfo: any;
       };
@@ -47,7 +45,6 @@ export const initialState: State = {
   data: null,
   isRegister: false,
   hints: undefined,
-  countdown: 2,
   isLoading: true,
   additionalInfo: undefined,
 };
@@ -69,10 +66,6 @@ export function reducer(state: State, action: Action): State {
       return { ...state, isRegister: action.payload };
     case "SET_HINTS":
       return { ...state, hints: action.payload };
-    case "DECREMENT_COUNTDOWN":
-      return { ...state, countdown: Math.max(state.countdown - 1, 0) };
-    case "RESET_COUNTDOWN":
-      return { ...state, countdown: 2 };
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
     case "INITIALIZE_FROM_POPUP":
@@ -97,10 +90,8 @@ export function reducer(state: State, action: Action): State {
         additionalInfo: action.payload.additionalInfo,
         data: parsedData,
         publicKey: action.payload.publicKey || "",
-        isRegister: action.payload.isRegister || false,
         hints: action.payload.hints,
         response: null,
-        countdown: 2,
         error: null,
         isLoading: false,
       };

@@ -13,6 +13,7 @@ import {
   type ConfigAction,
   convertMemberKeyToString,
   fetchMaybeDelegate,
+  getDelegateAddress,
   getMultiWalletFromSettings,
   KeyType,
   type MemberKey,
@@ -39,14 +40,14 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
-import { Badge } from "./ui/badge";
-import { Card } from "./ui/card";
+import { Badge } from "../ui/badge";
+import { Card } from "../ui/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "./ui/collapsible";
-import { Skeleton } from "./ui/skeleton";
+} from "../ui/collapsible";
+import { Skeleton } from "../ui/skeleton";
 
 interface TransactionDetailsProps {
   data: DataPayload | null;
@@ -84,7 +85,7 @@ const TransactionSkeleton = React.memo(() => {
 TransactionSkeleton.displayName = "TransactionSkeleton";
 
 // Main component with early returns for loading/empty states
-export function TransactionDetails({
+export function AuthenticationDetails({
   data,
   publicKey,
   isLoading,
@@ -102,9 +103,9 @@ export function TransactionDetails({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="space-y-2"
+      className="space-y-2 overflow-hidden"
     >
-      <ScrollArea className="max-h-[300px] h-auto w-full">
+      <ScrollArea className="max-h-[300px] h-auto w-full overflow-y-auto">
         <MessageContent
           data={data}
           additionalInfo={additionalInfo}
@@ -224,74 +225,133 @@ MessageContent.displayName = "MessageContent";
 const ConfigActionsList = React.memo(
   ({ actions }: { actions: ConfigAction[] }) => {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
           <Settings className="h-4 w-4 mr-2 text-purple-600 dark:text-purple-500" />
           Configuration Actions ({actions.length})
         </div>
-        {actions.map((action, index) => (
-          <ConfigActionItem key={index} action={action} />
-        ))}
+        <div className="grid grid-cols-1 gap-3">
+          {actions.map((action, index) => (
+            <ConfigActionCard key={index} action={action} />
+          ))}
+        </div>
       </div>
     );
   }
 );
 ConfigActionsList.displayName = "ConfigActionsList";
 
-// Memoized ConfigActionItem component
-const ConfigActionItem = React.memo(({ action }: { action: ConfigAction }) => {
-  const [isOpen, setIsOpen] = useState(false);
+// New card-based component to replace the nested collapsible
+const ConfigActionCard = React.memo(({ action }: { action: ConfigAction }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Memoized action icon
-  const actionIcon = useMemo(() => {
+  // Get action icon and color based on action type
+  const actionConfig = useMemo(() => {
     switch (action.__kind) {
       case "EditPermissions":
-        return (
-          <Settings className="h-4 w-4 text-slate-600 dark:text-slate-500" />
-        );
+        return {
+          icon: <Settings className="h-4 w-4" />,
+          color: "text-blue-600 dark:text-blue-500",
+          bgColor: "bg-blue-50 dark:bg-blue-950/20",
+          borderColor: "border-blue-100 dark:border-blue-900/30",
+        };
       case "AddMembers":
-        return (
-          <UserPlus className="h-4 w-4 text-green-600 dark:text-green-500" />
-        );
+        return {
+          icon: <UserPlus className="h-4 w-4" />,
+          color: "text-emerald-600 dark:text-emerald-500",
+          bgColor: "bg-emerald-50 dark:bg-emerald-950/20",
+          borderColor: "border-emerald-100 dark:border-emerald-900/30",
+        };
       case "RemoveMembers":
-        return <UserMinus className="h-4 w-4 text-red-600 dark:text-red-500" />;
+        return {
+          icon: <UserMinus className="h-4 w-4" />,
+          color: "text-red-600 dark:text-red-500",
+          bgColor: "bg-red-50 dark:bg-red-950/20",
+          borderColor: "border-red-100 dark:border-red-900/30",
+        };
       case "SetThreshold":
-        return (
-          <Shield className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-        );
+        return {
+          icon: <Shield className="h-4 w-4" />,
+          color: "text-amber-600 dark:text-amber-500",
+          bgColor: "bg-amber-50 dark:bg-amber-950/20",
+          borderColor: "border-amber-100 dark:border-amber-900/30",
+        };
+      default:
+        return {
+          icon: <Settings className="h-4 w-4" />,
+          color: "text-slate-600 dark:text-slate-400",
+          bgColor: "bg-slate-50 dark:bg-slate-900/60",
+          borderColor: "border-slate-200 dark:border-slate-800",
+        };
     }
   }, [action.__kind]);
 
+  // Get a summary of the action for the card header
+  const actionSummary = useMemo(() => {
+    switch (action.__kind) {
+      case "EditPermissions":
+        return `Editing permissions for ${action.fields[0].length} member${
+          action.fields[0].length !== 1 ? "s" : ""
+        }`;
+      case "AddMembers":
+        return `Adding ${action.fields[0].length} new member${
+          action.fields[0].length !== 1 ? "s" : ""
+        }`;
+      case "RemoveMembers":
+        return `Removing ${action.fields[0].length} member${
+          action.fields[0].length !== 1 ? "s" : ""
+        }`;
+      case "SetThreshold":
+        return `Setting threshold to ${action.fields[0]}`;
+      default:
+        return "Configuration action";
+    }
+  }, [action]);
+
   return (
-    <Collapsible
-      open={isOpen}
-      onOpenChange={setIsOpen}
-      className="border rounded-md border-slate-200 dark:border-slate-800"
+    <div
+      className={`rounded-lg border ${actionConfig.borderColor} overflow-hidden transition-all duration-200 hover:shadow-sm`}
     >
-      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 text-sm font-medium text-left">
-        <div className="flex items-center">
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4 mr-2 text-slate-500" />
-          ) : (
-            <ChevronRight className="h-4 w-4 mr-2 text-slate-500" />
-          )}
-          <div className="flex items-center gap-2">
-            {actionIcon}
-            <Badge variant="outline" className="text-xs">
-              {action.__kind}
-            </Badge>
+      <div
+        className={`flex items-center justify-between p-3 ${actionConfig.bgColor} cursor-pointer`}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className={`rounded-full p-1.5 ${actionConfig.bgColor} ${actionConfig.color}`}
+          >
+            {actionConfig.icon}
+          </div>
+          <div>
+            <div className="font-medium text-sm">{action.__kind}</div>
+            <div className="text-xs text-slate-600 dark:text-slate-400">
+              {actionSummary}
+            </div>
           </div>
         </div>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="p-3 pt-0 text-sm border-t border-slate-200 dark:border-slate-800">
-        <ConfigActionContent action={action} />
-      </CollapsibleContent>
-    </Collapsible>
+        <button
+          className="p-1 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
+          aria-label={isExpanded ? "Collapse" : "Expand"}
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-slate-500" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-slate-500" />
+          )}
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <ConfigActionContent action={action} />
+        </div>
+      )}
+    </div>
   );
 });
-ConfigActionItem.displayName = "ConfigActionItem";
+ConfigActionCard.displayName = "ConfigActionCard";
 
-// Memoized ConfigActionContent component
+// Update the ConfigActionContent component to work better with the card layout
 const ConfigActionContent = React.memo(
   ({ action }: { action: ConfigAction }) => {
     switch (action.__kind) {
@@ -316,12 +376,16 @@ const ConfigActionContent = React.memo(
         return <MemberKeysDisplay memberKeys={action.fields[0]} />;
       case "SetThreshold":
         return (
-          <div className="p-2">
+          <div className="space-y-2">
             <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
               New Threshold Value
             </div>
-            <div className="font-mono text-sm mt-1 text-slate-800 dark:text-slate-200">
+            <div className="font-mono text-sm p-2 rounded bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
               {action.fields[0]}
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              This is the minimum number of signatures required to approve
+              transactions.
             </div>
           </div>
         );
@@ -411,7 +475,7 @@ const AddMemberDisplay = React.memo(
 );
 AddMemberDisplay.displayName = "AddMemberDisplay";
 
-// Memoized MembersDisplay component
+// Update the MembersDisplay component to be cleaner and more consistent with the new design
 const MembersDisplay = React.memo(
   ({
     members,
@@ -429,86 +493,93 @@ const MembersDisplay = React.memo(
     }
 
     return (
-      <div className="space-y-3 p-2">
+      <div className="space-y-3">
         <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
           {actionKind === "EditPermissions" ? "Editing" : "Adding"}{" "}
           {members.length} Member
           {members.length !== 1 ? "s" : ""}
         </div>
-        {members.map((memberWithArgs, index) => (
-          <Collapsible
-            key={index}
-            className="border rounded-md border-slate-200 dark:border-slate-800"
-          >
-            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-medium text-left">
-              <div className="flex items-center">
-                <Users className="h-3.5 w-3.5 mr-2 text-slate-600 dark:text-slate-400" />
-                <span>Member {index + 1}</span>
+        <div className="grid grid-cols-1 gap-3">
+          {members.map((memberWithArgs, index) => (
+            <div
+              key={index}
+              className="bg-slate-50 dark:bg-slate-900/60 rounded-md p-3"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-800">
+                    <Users className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+                  </div>
+                  <span className="font-medium text-sm">
+                    Member {index + 1}
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  Type:{" "}
+                  {KeyType.Ed25519 === memberWithArgs.pubkey.keyType
+                    ? "Wallet Address"
+                    : "Passkey"}
+                </Badge>
               </div>
-              <Badge variant="outline" className="text-xs">
-                Type:{" "}
-                {KeyType.Ed25519 === memberWithArgs.pubkey.keyType
-                  ? "Solana Wallet Address"
-                  : "Passkey"}
-              </Badge>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="p-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="space-y-3">
-                <div>
+
+              <div className="space-y-3 mt-3">
+                <div className="space-y-1">
                   <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Public Key
                   </div>
-                  <div className="mt-1">
+                  <div className="bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
                     <KeyDisplay memberKey={memberWithArgs.pubkey} />
                   </div>
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Permissions
                   </div>
-                  <div className="mt-1 grid grid-cols-1 gap-1">
-                    <PermissionItem
-                      name="Initiate Transaction"
-                      enabled={Permissions.has(
-                        memberWithArgs.permissions,
-                        Permission.InitiateTransaction
-                      )}
-                    />
-                    <PermissionItem
-                      name="Vote Transaction"
-                      enabled={Permissions.has(
-                        memberWithArgs.permissions,
-                        Permission.VoteTransaction
-                      )}
-                    />
-                    <PermissionItem
-                      name="Execute Transaction"
-                      enabled={Permissions.has(
-                        memberWithArgs.permissions,
-                        Permission.ExecuteTransaction
-                      )}
-                    />
-                    <PermissionItem
-                      name="Is Delegate"
-                      enabled={Permissions.has(
-                        memberWithArgs.permissions,
-                        Permission.IsDelegate
-                      )}
-                    />
+                  <div className="bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <PermissionItem
+                        name="Initiate Transaction"
+                        enabled={Permissions.has(
+                          memberWithArgs.permissions,
+                          Permission.InitiateTransaction
+                        )}
+                      />
+                      <PermissionItem
+                        name="Vote Transaction"
+                        enabled={Permissions.has(
+                          memberWithArgs.permissions,
+                          Permission.VoteTransaction
+                        )}
+                      />
+                      <PermissionItem
+                        name="Execute Transaction"
+                        enabled={Permissions.has(
+                          memberWithArgs.permissions,
+                          Permission.ExecuteTransaction
+                        )}
+                      />
+                      <PermissionItem
+                        name="Is Delegate"
+                        enabled={Permissions.has(
+                          memberWithArgs.permissions,
+                          Permission.IsDelegate
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 );
 MembersDisplay.displayName = "MembersDisplay";
 
-// Memoized MemberKeysDisplay component
+// Update MemberKeysDisplay to match the new design
 const MemberKeysDisplay = React.memo(
   ({ memberKeys }: { memberKeys: MemberKey[] }) => {
     if (memberKeys.length === 0) {
@@ -520,22 +591,31 @@ const MemberKeysDisplay = React.memo(
     }
 
     return (
-      <div className="space-y-3 p-2">
+      <div className="space-y-3">
         <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
           Removing {memberKeys.length} Member
           {memberKeys.length !== 1 ? "s" : ""}
         </div>
-        {memberKeys.map((memberKey, index) => (
-          <div
-            key={index}
-            className="border rounded-md border-slate-200 dark:border-slate-800 p-2"
-          >
-            <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Member Key {index + 1}
+        <div className="grid grid-cols-1 gap-3">
+          {memberKeys.map((memberKey, index) => (
+            <div
+              key={index}
+              className="bg-slate-50 dark:bg-slate-900/60 rounded-md p-3"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center justify-center h-6 w-6 rounded-full bg-red-100 dark:bg-red-900/30">
+                  <UserMinus className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Member Key {index + 1}
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
+                <KeyDisplay memberKey={memberKey} />
+              </div>
             </div>
-            <KeyDisplay memberKey={memberKey} />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
@@ -661,14 +741,18 @@ const IntentDisplay = React.memo(
 
           if (additionalInfo?.recipient) {
             try {
-              const delegateData = await fetchMaybeDelegate(
+              const delegate = await fetchMaybeDelegate(
                 rpc,
-                new Secp256r1Key(additionalInfo.recipient)
+                await getDelegateAddress(
+                  new Secp256r1Key(additionalInfo.recipient)
+                )
               );
 
               if (
-                delegateData &&
-                delegateData.multiWallet === intent.destination
+                delegate.exists &&
+                (await getMultiWalletFromSettings(
+                  delegate.data.multiWalletSettings
+                )) === intent.destination
               ) {
                 try {
                   const response = await fetch(
@@ -1085,11 +1169,17 @@ const PropertyItem = React.memo(
 );
 PropertyItem.displayName = "PropertyItem";
 
-// Memoized PermissionItem component
+// Update PermissionItem to be more visually appealing
 const PermissionItem = React.memo(
   ({ name, enabled }: { name: string; enabled: boolean }) => {
     return (
-      <div className="flex items-center">
+      <div
+        className={`flex items-center p-1.5 rounded ${
+          enabled
+            ? "bg-green-50 dark:bg-green-950/20"
+            : "bg-slate-100 dark:bg-slate-800/50"
+        }`}
+      >
         {enabled ? (
           <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center mr-2">
             <svg
@@ -1129,7 +1219,7 @@ const PermissionItem = React.memo(
         <span
           className={`text-xs ${
             enabled
-              ? "text-slate-800 dark:text-slate-200"
+              ? "text-green-800 dark:text-green-200"
               : "text-slate-500 dark:text-slate-400"
           }`}
         >
