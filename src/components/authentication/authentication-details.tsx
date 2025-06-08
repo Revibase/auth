@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import {
@@ -971,7 +972,20 @@ const IntentDisplay = React.memo(
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="bg-background/60 rounded-md p-2">
             <div className="text-xs text-muted-foreground mb-0.5">From</div>
-            <div className="font-medium text-sm flex items-center">
+            <div className="flex items-center gap-2">
+              <Avatar className={`h-8 w-8`}>
+                {publicKey && (
+                  <AvatarImage
+                    src={`${proxify(
+                      `https://bucket.revibase.com/${publicKey}/avatar`
+                    )}`}
+                    alt={`${usernameData.sender}'s avatar`}
+                  />
+                )}
+                <AvatarFallback className="bg-accent text-accent-foreground border font-semibold">
+                  {usernameData.sender?.charAt(0).toUpperCase() ?? "?"}
+                </AvatarFallback>
+              </Avatar>
               <div className="bg-primary/10 text-primary px-1.5 py-0.5 text-xs rounded-md">
                 {usernameData.sender ?? "Your Wallet"}
               </div>
@@ -991,14 +1005,31 @@ const IntentDisplay = React.memo(
                 <Skeleton className="h-3 w-20" />
               ) : (
                 usernameData.recipient && (
-                  <div className="font-medium text-sm text-primary">
-                    {usernameData.recipient}
+                  <div className="flex items-center gap-2 ">
+                    <Avatar className={`h-8 w-8`}>
+                      {additionalInfo?.recipient && (
+                        <AvatarImage
+                          src={`${proxify(
+                            `https://bucket.revibase.com/${additionalInfo?.recipient}/avatar`
+                          )}`}
+                          alt={`${usernameData.recipient}'s avatar`}
+                        />
+                      )}
+                      <AvatarFallback className="bg-accent text-accent-foreground border font-semibold">
+                        {usernameData.recipient?.charAt(0).toUpperCase() ?? "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {usernameData.recipient}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formattedDestination}
+                      </span>
+                    </div>
                   </div>
                 )
               )}
-              <div className="text-xs text-muted-foreground font-mono">
-                {formattedDestination}
-              </div>
             </div>
           </div>
         </div>
