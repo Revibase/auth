@@ -40,8 +40,10 @@ export const useRegistration = ({
   username,
   hints,
   message,
+  shouldCreateWallet,
 }: {
   username: string;
+  shouldCreateWallet: boolean;
   hints?: PublicKeyCredentialHint[];
   message?: string;
 }) => {
@@ -221,8 +223,20 @@ export const useRegistration = ({
         throw new Error(await request.text());
       }
       const payload = (await request.json()) as PasskeyPayload;
-      setCreateWalletArgs({ ...payload, authResponse: response });
-      setRegistrationStage("wallet-prompt");
+
+      if (shouldCreateWallet) {
+        setCreateWalletArgs({ ...payload, authResponse: response });
+        setRegistrationStage("wallet-prompt");
+      } else {
+        setResponse(
+          JSON.stringify({
+            publicKey: payload.publicKey,
+            username,
+            authResponse: response,
+          })
+        );
+        setRegistrationStage("complete");
+      }
     } catch (error) {
       setError((error as Error).message);
       setRegistrationStage("registration-error");

@@ -327,10 +327,11 @@ RedirectButton.displayName = "RedirectButton";
 
 export const Registration: FC<{
   redirectUrl: string | null;
+  shouldCreateWallet?: boolean;
   message?: string;
   onReturn?: () => void;
   hints?: PublicKeyCredentialHint[];
-}> = ({ redirectUrl, hints, onReturn, message }) => {
+}> = ({ redirectUrl, hints, onReturn, message, shouldCreateWallet = true }) => {
   const [username, setUsername] = useState("");
 
   const {
@@ -341,7 +342,7 @@ export const Registration: FC<{
     loading,
     error,
     response,
-  } = useRegistration({ username, hints, message });
+  } = useRegistration({ username, hints, message, shouldCreateWallet });
 
   const { countdown, handleRedirectNow } = useCountdownAndSend({
     redirectUrl,
@@ -362,9 +363,9 @@ export const Registration: FC<{
       case "wallet-error":
         return "Wallet Creation Error";
       case "wallet-prompt":
-        return "Step 2: Create Your Wallet";
+        return "Create Your Wallet";
       default:
-        return "Step 1: Register a new passkey";
+        return "Register a new passkey";
     }
   })();
 

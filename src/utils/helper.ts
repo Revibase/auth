@@ -48,29 +48,25 @@ export async function getRandomPayer(): Promise<TransactionSigner> {
     signTransactions(transactions) {
       return new Promise(async (resolve, reject) => {
         try {
-          const signatures = await Promise.all(
-            transactions.map(async (x) => {
-              const signatureResponse = await fetch(`${PAYERS_ENDPOINT}/sign`, {
-                method: "POST",
-                body: JSON.stringify({
-                  publicKey: payer,
-                  transaction: getBase64Decoder().decode(
-                    getTransactionEncoder().encode(x)
-                  ),
-                }),
-              });
-              if (!signatureResponse.ok) {
-                throw new Error(await signatureResponse.text());
-              }
-              const { signature } = (await signatureResponse.json()) as {
-                signature: string;
-              };
-
-              return getBase58Encoder().encode(signature);
-            })
-          );
+          const signatureResponse = await fetch(`${PAYERS_ENDPOINT}/sign`, {
+            method: "POST",
+            body: JSON.stringify({
+              publicKey: payer,
+              transactions: transactions.map((x) =>
+                getBase64Decoder().decode(getTransactionEncoder().encode(x))
+              ),
+            }),
+          });
+          if (!signatureResponse.ok) {
+            throw new Error(await signatureResponse.text());
+          }
+          const { signatures } = (await signatureResponse.json()) as {
+            signatures: string[];
+          };
           resolve(
-            signatures.map((x) => ({ [address(payer)]: x as SignatureBytes }))
+            signatures.map((x) => ({
+              [address(payer)]: getBase58Encoder().encode(x) as SignatureBytes,
+            }))
           );
         } catch (error) {
           reject(error);
