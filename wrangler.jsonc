@@ -16,7 +16,7 @@
     "NEXT_PUBLIC_BUCKET_IMAGE_ENDPOINT": "https://bucket.revibase.com",
     "NEXT_PUBLIC_IMAGE_PROXY_ENDPOINT": "https://proxy.revibase.com",
     "NEXT_PUBLIC_PASSKEY_DATABASE": "https://passkeys.revibase.com",
-    "NEXT_PUBLIC_PAYERS_ENDPOINT": "https://payers.revibase.com",
+    "NEXT_PUBLIC_API_ENDPOINT": "https://api.revibase.com",
     "NEXT_PUBLIC_RP_ID": "revibase.com",
     "NEXT_PUBLIC_RP_NAME": "Revibase",
     "NEXT_PUBLIC_FRAME_ANCESTOR": "https://revibase.com"

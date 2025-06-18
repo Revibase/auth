@@ -21,8 +21,8 @@ import {
   TransactionSigner,
 } from "@solana/kit";
 import {
+  API_ENDPOINT,
   CONNECTION_RPC_ENDPOINT,
-  PAYERS_ENDPOINT,
   PROXY_IMAGE_ENDPOINT,
 } from "./consts";
 
@@ -36,7 +36,7 @@ export const sendAndConfirm = sendAndConfirmTransactionFactory({
 });
 
 async function fetchRandomPayer() {
-  const result = await fetch(`${PAYERS_ENDPOINT}`);
+  const result = await fetch(`${API_ENDPOINT}`);
   return (await result.text()).replace(/"/g, "");
 }
 
@@ -47,7 +47,7 @@ export async function getRandomPayer(): Promise<TransactionSigner> {
     signTransactions(transactions) {
       return new Promise(async (resolve, reject) => {
         try {
-          const signatureResponse = await fetch(`${PAYERS_ENDPOINT}/sign`, {
+          const signatureResponse = await fetch(`${API_ENDPOINT}/sign`, {
             method: "POST",
             body: JSON.stringify({
               publicKey: payer,

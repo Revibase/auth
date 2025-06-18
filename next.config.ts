@@ -1,9 +1,9 @@
 import {
+  API_ENDPOINT,
   BUCKET_IMAGE_ENDPOINT,
   CONNECTION_RPC_ENDPOINT,
   DATABASE_ENDPOINT,
   FRAME_ANCESTOR,
-  PAYERS_ENDPOINT,
   PROXY_IMAGE_ENDPOINT,
 } from "@/utils";
 import { setupDevPlatform } from "@cloudflare/next-on-pages/next-dev";
@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: `default-src 'self'; base-uri 'self'; frame-ancestors ${FRAME_ANCESTOR}; form-action 'self'; object-src 'none'; frame-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; connect-src 'self' ${CONNECTION_RPC_ENDPOINT} ${`wss://${
               new URL(CONNECTION_RPC_ENDPOINT).hostname
-            }`} ${DATABASE_ENDPOINT} ${PAYERS_ENDPOINT} https://cloudflareinsights.com; img-src 'self' ${BUCKET_IMAGE_ENDPOINT} ${PROXY_IMAGE_ENDPOINT}; font-src 'self';`,
+            }`} ${DATABASE_ENDPOINT} ${API_ENDPOINT} https://cloudflareinsights.com; img-src 'self' ${BUCKET_IMAGE_ENDPOINT} ${PROXY_IMAGE_ENDPOINT}; font-src 'self';`,
           },
         ],
       },
