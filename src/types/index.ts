@@ -1,5 +1,4 @@
 import {
-  ConfigAction,
   CustomTransactionMessage,
   TransactionActionType,
 } from "@revibase/wallet-sdk";
@@ -30,7 +29,6 @@ export type ParsedTransaction = {
   transactionAddress: string;
   transactionMessageBytes: Uint8Array;
   deserializedTxMessage:
-    | ConfigAction[]
     | string
     | null
     | IntentPayload

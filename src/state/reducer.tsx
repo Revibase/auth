@@ -6,7 +6,7 @@ import { PublicKeyCredentialHint } from "@simplewebauthn/browser";
 export type State = {
   error: string | null;
   response: string | null;
-  publicKey: string;
+  publicKey: string | null;
   data: DataPayload | null;
   isRegister: boolean;
   hints?: PublicKeyCredentialHint[];
@@ -41,7 +41,7 @@ export type Action =
 export const initialState: State = {
   error: null,
   response: null,
-  publicKey: "",
+  publicKey: null,
   data: null,
   isRegister: false,
   hints: undefined,
@@ -89,7 +89,7 @@ export function reducer(state: State, action: Action): State {
         ...state,
         additionalInfo: action.payload.additionalInfo,
         data: parsedData,
-        publicKey: action.payload.publicKey || "",
+        publicKey: action.payload.publicKey || null,
         hints: action.payload.hints,
         response: null,
         error: null,

@@ -1,7 +1,6 @@
 import { ParsedTransaction } from "@/types";
 import {
   customTransactionMessageDeserialize,
-  deserializeConfigActions,
   TransactionActionType,
 } from "@revibase/wallet-sdk";
 import { base64URLStringToBuffer } from "@simplewebauthn/browser";
@@ -140,11 +139,6 @@ export const parsedTransaction = (
     case "add_new_member":
       deserializedTxMessage = `${new URL(redirectUrl).hostname}`;
       break;
-    case "change_config":
-      deserializedTxMessage = deserializeConfigActions(
-        new Uint8Array(base64URLStringToBuffer(transactionMessageBytes))
-      );
-      break;
     case "native_transfer_intent":
       deserializedTxMessage = deserializeIntent(
         new Uint8Array(base64URLStringToBuffer(transactionMessageBytes)),
@@ -192,7 +186,6 @@ export const parsedTransaction = (
       value: "Create And Execute Transaction (Sync)",
       variant: "default",
     },
-    change_config: { value: "Change Config", variant: "default" },
     add_new_member: {
       value: "Add New Passkey Member",
       variant: "secondary",
@@ -255,3 +248,10 @@ export async function getAsset(assetId: string | null | undefined) {
 export function proxify(imageUrl?: string) {
   return imageUrl ? `${PROXY_IMAGE_ENDPOINT}?image=${imageUrl}` : "";
 }
+
+export const formatAddress = (address?: string) => {
+  if (!address || address.length < 10) return address;
+  return `${address.substring(0, 6)}...${address.substring(
+    address.length - 4
+  )}`;
+};

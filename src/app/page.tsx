@@ -1,8 +1,8 @@
 "use client";
 
 import { AuthenticationActions } from "@/components/authentication/authentication-actions";
-import { AuthenticationDetails } from "@/components/authentication/authentication-details";
 import { AuthenticationStatus } from "@/components/authentication/authentication-status";
+import { AuthenticationDetails } from "@/components/authentication/details";
 import { Registration } from "@/components/registration/main";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {

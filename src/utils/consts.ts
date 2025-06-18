@@ -15,3 +15,6 @@ export const DATABASE_ENDPOINT = process.env
 
 export const PROXY_IMAGE_ENDPOINT = process.env
   .NEXT_PUBLIC_IMAGE_PROXY_ENDPOINT as string;
+
+export const BUCKET_IMAGE_ENDPOINT = process.env
+  .NEXT_PUBLIC_BUCKET_IMAGE_ENDPOINT as string;

@@ -24,7 +24,7 @@ export const AuthenticationActions = memo(
   }: {
     data: DataPayload | null;
     dispatch: React.Dispatch<Action>;
-    publicKey?: string;
+    publicKey: string | null;
     hints?: PublicKeyCredentialHint[];
     isLoading?: boolean;
   }) => {

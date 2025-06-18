@@ -13,7 +13,9 @@ import {
   createWallet,
   getDomainConfig,
   getSecp256r1PubkeyDecoder,
+  getSecp256r1VerifyInstruction,
   getSettingsFromCreateKey,
+  Permissions,
   Secp256r1Key,
 } from "@revibase/wallet-sdk";
 import {
@@ -119,9 +121,10 @@ export const useRegistration = ({
       });
 
       const feePayer = await getRandomPayer();
-      const createWalletIxs = await createWallet({
+      const { instructions, secp256r1VerifyInput } = await createWallet({
         createKey,
         feePayer,
+        permissions: Permissions.all(),
         initialMember: new Secp256r1Key(createWalletArgs.publicKey, {
           verifyArgs: {
             clientDataJson,
@@ -137,10 +140,16 @@ export const useRegistration = ({
         }),
       });
 
+      if (secp256r1VerifyInput.length > 0) {
+        instructions.unshift(
+          getSecp256r1VerifyInstruction(secp256r1VerifyInput)
+        );
+      }
+
       const latestBlockHash = await rpc.getLatestBlockhash().send();
       const tx = await pipe(
         createTransactionMessage({ version: 0 }),
-        (tx) => appendTransactionMessageInstructions(createWalletIxs, tx),
+        (tx) => appendTransactionMessageInstructions(instructions, tx),
         (tx) => setTransactionMessageFeePayerSigner(feePayer, tx),
         (tx) =>
           setTransactionMessageLifetimeUsingBlockhash(
