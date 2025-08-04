@@ -7,14 +7,16 @@ import {
   RP_NAME,
   rpc,
   sendAndConfirm,
+  validateUsername,
 } from "@/utils";
 import {
   convertSignatureDERtoRS,
   createWallet,
+  fetchGlobalCounter,
   getDomainConfig,
-  getSecp256r1PubkeyDecoder,
+  getGlobalCounterAddress,
   getSecp256r1VerifyInstruction,
-  getSettingsFromCreateKey,
+  getSettingsFromIndex,
   Permissions,
   Secp256r1Key,
 } from "@revibase/wallet-sdk";
@@ -42,10 +44,8 @@ export const useRegistration = ({
   username,
   hints,
   message,
-  shouldCreateWallet,
 }: {
   username: string;
-  shouldCreateWallet: boolean;
   hints?: PublicKeyCredentialHint[];
   message?: string;
 }) => {
@@ -77,8 +77,10 @@ export const useRegistration = ({
       // Show the creating wallet loading screen
       setRegistrationStage("creating");
 
-      const createKey = crypto.getRandomValues(new Uint8Array(32));
-      const settings = await getSettingsFromCreateKey(createKey);
+      const createIndex = (
+        await fetchGlobalCounter(rpc, await getGlobalCounterAddress())
+      ).data.index;
+      const settings = await getSettingsFromIndex(createIndex);
       const { slotNumber, slotHash, challenge } =
         await createTransactionChallenge({
           transactionActionType: "add_new_member",
@@ -122,13 +124,14 @@ export const useRegistration = ({
 
       const feePayer = await getRandomPayer();
       const { instructions, secp256r1VerifyInput } = await createWallet({
-        createKey,
-        feePayer,
+        compressed: true,
+        index: createIndex,
+        payer: feePayer,
         permissions: Permissions.all(),
         initialMember: new Secp256r1Key(createWalletArgs.publicKey, {
           verifyArgs: {
             clientDataJson,
-            publicKey: getSecp256r1PubkeyDecoder().decode(
+            publicKey: new Uint8Array(
               getBase58Encoder().encode(createWalletArgs.publicKey)
             ),
             slotNumber: BigInt(slotNumber),
@@ -183,17 +186,17 @@ export const useRegistration = ({
   const handleRegister = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      // Step 1: Webauthn register
       setRegistrationStage("registering");
+      validateUsername(username);
       const result = await fetch(
         `${DATABASE_ENDPOINT}?username=${username}&challenge=true${
           message ? `&message=${encodeURIComponent(message)}` : ""
         }`
       );
       if (result.status !== 200) {
-        throw new Error(await result.text());
+        const response = (await result.json()) as { error: string };
+        throw new Error(response.error);
       }
       const { challenge } = (await result.json()) as {
         challenge: string;
@@ -233,19 +236,8 @@ export const useRegistration = ({
       }
       const payload = (await request.json()) as PasskeyPayload;
 
-      if (shouldCreateWallet) {
-        setCreateWalletArgs({ ...payload, authResponse: response });
-        setRegistrationStage("wallet-prompt");
-      } else {
-        setResponse(
-          JSON.stringify({
-            publicKey: payload.publicKey,
-            username,
-            authResponse: response,
-          })
-        );
-        setRegistrationStage("complete");
-      }
+      setCreateWalletArgs({ ...payload, authResponse: response });
+      setRegistrationStage("wallet-prompt");
     } catch (error) {
       setError((error as Error).message);
       setRegistrationStage("registration-error");

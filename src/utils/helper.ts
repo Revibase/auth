@@ -79,7 +79,11 @@ export async function createTransactionChallenge({
   transactionActionType,
   transactionAddress,
   transactionMessageBytes,
-}: Omit<ParsedTransaction, "deserializedTxMessage" | "label">) {
+}: {
+  transactionActionType: TransactionActionType;
+  transactionAddress: string;
+  transactionMessageBytes: Uint8Array;
+}) {
   const slotSysvarData = (
     await rpc
       .getAccountInfo(address("SysvarS1otHashes111111111111111111111111111"), {
@@ -101,12 +105,10 @@ export async function createTransactionChallenge({
     await crypto.subtle.digest(
       "SHA-256",
       new Uint8Array([
-        ...new Uint8Array(getUtf8Encoder().encode(transactionActionType)),
+        ...getUtf8Encoder().encode(transactionActionType),
         ...getBase58Encoder().encode(transactionAddress),
         ...new Uint8Array(
-          transactionActionType !== "close"
-            ? await crypto.subtle.digest("SHA-256", transactionMessageBytes)
-            : transactionMessageBytes
+          await crypto.subtle.digest("SHA-256", transactionMessageBytes)
         ),
         ...slotHashBytes,
       ])
@@ -152,7 +154,19 @@ export const parsedTransaction = (
       );
       break;
     case "close":
-      deserializedTxMessage = `Closing transaction ${transactionAddress} to reclaim rent fees.`;
+      deserializedTxMessage = `Closing transaction ${formatAddress(
+        transactionAddress
+      )} to reclaim rent fees.`;
+      break;
+    case "compress":
+      deserializedTxMessage = `This will compress the settings account ${formatAddress(
+        transactionAddress
+      )}. You can decompress it at any time if needed.`;
+      break;
+    case "decompress":
+      deserializedTxMessage = `This will decompress the settings account ${formatAddress(
+        transactionAddress
+      )}. You can compress it again later if desired.`;
       break;
     default:
       deserializedTxMessage = customTransactionMessageDeserialize(
@@ -168,6 +182,14 @@ export const parsedTransaction = (
       variant: "default" | "outline" | "secondary" | "destructive";
     }
   > = {
+    compress: {
+      value: "Compress Wallet",
+      variant: "default",
+    },
+    decompress: {
+      value: "Decompress Wallet",
+      variant: "default",
+    },
     create: {
       value: "Create Transaction",
       variant: "default",
@@ -255,3 +277,14 @@ export const formatAddress = (address?: string) => {
     address.length - 4
   )}`;
 };
+
+const USERNAME_REGEX = /^[a-z0-9_]{1,15}$/;
+
+export function validateUsername(username: string) {
+  const normalized = username.toLowerCase();
+  if (!USERNAME_REGEX.test(normalized)) {
+    throw new Error(
+      "Username must be 1–15 characters, only a-z, 0-9, and underscores."
+    );
+  }
+}

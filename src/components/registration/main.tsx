@@ -327,11 +327,10 @@ RedirectButton.displayName = "RedirectButton";
 
 export const Registration: FC<{
   redirectUrl: string | null;
-  shouldCreateWallet?: boolean;
   message?: string;
   onReturn?: () => void;
   hints?: PublicKeyCredentialHint[];
-}> = ({ redirectUrl, hints, onReturn, message, shouldCreateWallet = true }) => {
+}> = ({ redirectUrl, hints, onReturn, message }) => {
   const [username, setUsername] = useState("");
 
   const {
@@ -342,7 +341,7 @@ export const Registration: FC<{
     loading,
     error,
     response,
-  } = useRegistration({ username, hints, message, shouldCreateWallet });
+  } = useRegistration({ username, hints, message });
 
   const { countdown, handleRedirectNow } = useCountdownAndSend({
     redirectUrl,

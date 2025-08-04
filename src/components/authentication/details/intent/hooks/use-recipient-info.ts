@@ -1,11 +1,11 @@
 "use client";
 
 import type { PasskeyPayload } from "@/types";
-import { DATABASE_ENDPOINT, rpc } from "@/utils";
+import { DATABASE_ENDPOINT } from "@/utils";
 import {
-  fetchDelegate,
-  getDelegateAddress,
+  fetchDelegateIndex,
   getMultiWalletFromSettings,
+  getSettingsFromIndex,
   Secp256r1Key,
 } from "@revibase/wallet-sdk";
 import { useEffect, useState } from "react";
@@ -25,13 +25,11 @@ export function useRecipientInfo(destination: string, additionalInfo: any) {
 
     const validateRecipient = async (): Promise<boolean> => {
       try {
-        const delegate = await fetchDelegate(
-          rpc,
-          await getDelegateAddress(new Secp256r1Key(recipientKey))
+        const delegateIndex = await fetchDelegateIndex(
+          new Secp256r1Key(recipientKey)
         );
-        const multiWallet = await getMultiWalletFromSettings(
-          delegate.data.multiWalletSettings
-        );
+        const settings = await getSettingsFromIndex(delegateIndex);
+        const multiWallet = await getMultiWalletFromSettings(settings);
         return multiWallet.toString() === destination;
       } catch (err) {
         if (abort.signal.aborted) return false;

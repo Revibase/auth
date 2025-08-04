@@ -1,11 +1,11 @@
 "use client";
 
 import type { PasskeyPayload } from "@/types";
-import { DATABASE_ENDPOINT, rpc } from "@/utils";
+import { DATABASE_ENDPOINT } from "@/utils";
 import {
-  fetchDelegate,
-  getDelegateAddress,
+  fetchDelegateIndex,
   getMultiWalletFromSettings,
+  getSettingsFromIndex,
   Secp256r1Key,
 } from "@revibase/wallet-sdk";
 import { useEffect, useState } from "react";
@@ -27,15 +27,12 @@ export function useSenderInfo(publicKey: string | null) {
       setIsLoading(true);
 
       try {
-        const delegate = await fetchDelegate(
-          rpc,
-          await getDelegateAddress(new Secp256r1Key(publicKey))
+        const delegateIndex = await fetchDelegateIndex(
+          new Secp256r1Key(publicKey)
         );
-        setSenderAddress(
-          (
-            await getMultiWalletFromSettings(delegate.data.multiWalletSettings)
-          ).toString()
-        );
+        const settings = await getSettingsFromIndex(delegateIndex);
+        const multiWallet = await getMultiWalletFromSettings(settings);
+        setSenderAddress(multiWallet.toString());
 
         const response = await fetch(
           `${DATABASE_ENDPOINT}?publicKey=${publicKey}`,

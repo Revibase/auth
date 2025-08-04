@@ -57,7 +57,6 @@ export default function Home() {
         redirectUrl={redirectUrl}
         message={data?.type === "message" ? data.payload : undefined}
         onReturn={() => dispatch({ type: "SET_IS_REGISTER", payload: false })}
-        shouldCreateWallet={additionalInfo?.shouldCreateWallet}
       />
     );
   }

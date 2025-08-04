@@ -14,7 +14,10 @@ export const MembersDisplay = memo(
     members,
     actionKind,
   }: {
-    members: MemberKeyWithPermissionsArgs[];
+    members: Omit<
+      MemberKeyWithPermissionsArgs,
+      "delegateCloseArgs" | "delegateCreationArgs"
+    >[];
     actionKind: "AddMembers" | "EditPermissions";
   }) => {
     if (members.length === 0) {

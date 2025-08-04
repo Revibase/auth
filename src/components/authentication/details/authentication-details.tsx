@@ -10,6 +10,7 @@ import { IntentDisplay } from "./intent/intent-display";
 import { TransactionSkeleton } from "./loading-display";
 import { MessageDisplay } from "./message-display";
 import { ObjectDisplay } from "./object/object-display";
+import { SettingsAccountCompressionDisplay } from "./settings-account-compression-display";
 
 interface TransactionDetailsProps {
   data: DataPayload | null;
@@ -83,6 +84,13 @@ const ContentDetails = memo(
           publicKey={publicKey}
         />
       );
+    }
+
+    if (
+      data.transactionActionType === "compress" ||
+      data.transactionActionType === "decompress"
+    ) {
+      return <SettingsAccountCompressionDisplay data={data} />;
     }
 
     return <ObjectDisplay data={data} />;

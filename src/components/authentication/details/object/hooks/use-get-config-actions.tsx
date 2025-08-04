@@ -1,5 +1,6 @@
 import {
   ConfigAction,
+  getChangeConfigCompressedInstructionDataDecoder,
   getChangeConfigInstructionDataDecoder,
   identifyMultiWalletInstruction,
   MULTI_WALLET_PROGRAM_ADDRESS,
@@ -36,6 +37,12 @@ export function useGetConfigActions(
           const decoded = getChangeConfigInstructionDataDecoder().decode(
             new Uint8Array(ix.data)
           );
+          actions.push(...decoded.configActions);
+        } else if (ixType === MultiWalletInstruction.ChangeConfigCompressed) {
+          const decoded =
+            getChangeConfigCompressedInstructionDataDecoder().decode(
+              new Uint8Array(ix.data)
+            );
           actions.push(...decoded.configActions);
         }
       }

@@ -17,7 +17,7 @@ import { Skeleton } from "../ui/skeleton";
 export const AuthenticationActions = memo(
   ({
     dispatch,
-    publicKey,
+    publicKey: expectedPublicKey,
     hints,
     data,
     isLoading,
@@ -36,41 +36,41 @@ export const AuthenticationActions = memo(
       try {
         setLoading(true);
         dispatch({ type: "SET_ERROR", payload: null });
-        let payload: PasskeyPayload | null = null;
+        let userData: PasskeyPayload | null = null;
         let challenge: Uint8Array | null = null;
         let slotHash: string | null = null;
         let slotNumber: string | null = null;
 
-        if (publicKey) {
+        if (expectedPublicKey) {
           const response = await fetch(
-            `${DATABASE_ENDPOINT}?publicKey=${publicKey}`
+            `${DATABASE_ENDPOINT}?publicKey=${expectedPublicKey}`
           );
           const result = (await response.json()) as PasskeyPayload;
-          if (result.publicKey && publicKey !== result.publicKey) {
-            throw new Error("PublicKey mismatch");
-          }
-          payload = result;
+          userData = result;
         }
 
-        if (data.type === "message") {
-          challenge = new Uint8Array(getUtf8Encoder().encode(data.payload));
-        } else if (data.type === "transaction") {
+        const { type, payload } = data;
+
+        if (type === "message") {
+          challenge = new Uint8Array(getUtf8Encoder().encode(payload));
+        } else if (type === "transaction") {
           ({ slotNumber, slotHash, challenge } =
             await createTransactionChallenge(data));
         }
 
         if (!challenge) throw new Error("Invalid challenge message.");
 
-        const assertionResponse = await startAuthentication({
+        const { credentialId, transports } = userData ?? {};
+        const authResponse = await startAuthentication({
           optionsJSON: {
             rpId: RP_ID,
             challenge: bufferToBase64URLString(challenge.buffer as ArrayBuffer),
-            allowCredentials: payload?.credentialId
+            allowCredentials: credentialId
               ? [
                   {
                     type: "public-key",
-                    id: payload.credentialId,
-                    transports: payload.transports?.split(
+                    id: credentialId,
+                    transports: transports?.split(
                       ","
                     ) as AuthenticatorTransport[],
                   },
@@ -80,19 +80,19 @@ export const AuthenticationActions = memo(
           },
         });
 
-        if (!payload) {
+        if (!userData) {
           const response = await fetch(
-            `${DATABASE_ENDPOINT}?credentialId=${assertionResponse.id}`
+            `${DATABASE_ENDPOINT}?credentialId=${authResponse.id}`
           );
           const result = (await response.json()) as PasskeyPayload;
-          payload = result;
+          userData = result;
         }
-
-        if (!payload) throw new Error("Passkey is not registered.");
+        if (!userData) throw new Error("Passkey is not registered.");
+        const { username, publicKey } = userData;
         const result = JSON.stringify({
-          authResponse: assertionResponse,
-          username: payload.username,
-          publicKey: payload.publicKey,
+          authResponse,
+          username,
+          publicKey,
           slotNumber,
           slotHash,
         });
@@ -108,7 +108,7 @@ export const AuthenticationActions = memo(
       } finally {
         setLoading(false);
       }
-    }, [publicKey, data, dispatch, hints]);
+    }, [expectedPublicKey, data, dispatch, hints]);
 
     if (isLoading) {
       return <FooterSkeleton />;

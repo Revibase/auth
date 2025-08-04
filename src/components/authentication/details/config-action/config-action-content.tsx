@@ -25,7 +25,9 @@ export const ConfigActionContent = memo(
           />
         );
       case "RemoveMembers":
-        return <MemberKeysDisplay memberKeys={action.fields[0]} />;
+        return (
+          <MemberKeysDisplay memberKeys={action.fields[0].map((x) => x.data)} />
+        );
       case "SetThreshold":
         return (
           <div className="space-y-2">
